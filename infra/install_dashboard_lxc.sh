@@ -154,12 +154,15 @@ log "=== Phase 9: PostgreSQL pg_hba.conf-Hinweis ==="
 cat <<HINT
 
 ╔══════════════════════════════════════════════════════════════════╗
-║  MANUELL erforderlich (einmalig auf dem PostgreSQL-Host):        ║
+║  PostgreSQL läuft in LXC 522 (192.168.1.58).                    ║
+║  install_postgresql_lxc.sh richtet pg_hba.conf automatisch ein. ║
+║  DB_URL in .env muss zeigen auf:                                 ║
+║    postgresql://finanz:<pw>@192.168.1.58/finanz                  ║
 ║                                                                  ║
-║  In /etc/postgresql/*/main/pg_hba.conf eintragen:               ║
-║    host  finanz  finanz  ${LXC_IP}/32  scram-sha-256             ║
-║                                                                  ║
-║  Dann: systemctl reload postgresql                               ║
+║  Reihenfolge beim W541-Rollout:                                  ║
+║    1. install_postgresql_lxc.sh  (LXC 522)                       ║
+║    2. install_finance_auto_lxc.sh (LXC 520, rsm-live)            ║
+║    3. install_dashboard_lxc.sh   (LXC 521, dieses Skript)        ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 Dashboard erreichbar unter: http://${LXC_IP}:${DASHBOARD_PORT}
