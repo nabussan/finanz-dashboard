@@ -40,14 +40,15 @@ async def _check_sub_scores(pool) -> bool:
 
 async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
     sub = await _check_sub_scores(pool)
-    sub_cols = ", f.score_trends, f.score_cashflow, f.score_profitability, f.score_valuation, f.score_liquidity, f.score_solvency" if sub else ""
+    sub_cols_f  = ", f.score_trends, f.score_cashflow, f.score_profitability, f.score_valuation, f.score_liquidity, f.score_solvency" if sub else ""
+    sub_cols_bare = ", score_trends, score_cashflow, score_profitability, score_valuation, score_liquidity, score_solvency" if sub else ""
 
     if cluster_id is not None:
         rows = await pool.fetch(
             f"""
             SELECT f.ticker, f.updated, f.source,
                    f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.revenue_growth,
-                   f.ranking_score, f.ranking_pos{sub_cols}
+                   f.ranking_score, f.ranking_pos{sub_cols_f}
             FROM fundamentals f
             JOIN watchlist_items wi
               ON upper(split_part(wi.tv_symbol, ':', 2)) = upper(f.ticker)
@@ -63,7 +64,7 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
             f"""
             SELECT ticker, updated, source,
                    pe, ev_ebitda, roe, debt_equity, revenue_growth,
-                   ranking_score, ranking_pos{sub_cols}
+                   ranking_score, ranking_pos{sub_cols_bare}
             FROM fundamentals
             WHERE updated = (SELECT MAX(updated) FROM fundamentals)
             ORDER BY ranking_score DESC NULLS LAST

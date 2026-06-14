@@ -514,10 +514,14 @@ def score_tickers(
 
 def write_to_db_sync(records: list[dict], pool_dsn: str) -> int:
     """
-    Synchroner DB-Schreiber für Cronjob/BackgroundTask.
-    Gibt Anzahl der gespeicherten Zeilen zurück.
+    Synchroner DB-Schreiber für BackgroundTask/CLI.
+    Nutzt asyncpg (bereits Abhängigkeit des Dashboards).
     """
-    import psycopg2
+    import asyncio
+    import asyncpg
+
+    def _f(v) -> float | None:
+        return None if _is_nan(v) else float(v)
 
     today = date.today()
     rows = []
@@ -527,41 +531,38 @@ def write_to_db_sync(records: list[dict], pool_dsn: str) -> int:
             continue
         rows.append((
             ticker, today, "tv",
-            None if _is_nan(r.get("pe", _nan()))          else float(r["pe"]),
-            None if _is_nan(r.get("ev_ebitda", _nan()))   else float(r["ev_ebitda"]),
-            None if _is_nan(r.get("roe", _nan()))         else float(r["roe"]),
-            None if _is_nan(r.get("debt_equity", _nan())) else float(r["debt_equity"]),
-            None if _is_nan(r.get("revenue_growth", _nan())) else float(r["revenue_growth"]),
-            None if _is_nan(r.get("ranking_score", _nan())) else float(r["ranking_score"]),
-            r.get("cluster_rank"),
-            None if _is_nan(r.get("score_trends", _nan()))        else float(r["score_trends"]),
-            None if _is_nan(r.get("score_cashflow", _nan()))      else float(r["score_cashflow"]),
-            None if _is_nan(r.get("score_profitability", _nan())) else float(r["score_profitability"]),
-            None if _is_nan(r.get("score_valuation", _nan()))     else float(r["score_valuation"]),
-            None if _is_nan(r.get("score_liquidity", _nan()))     else float(r["score_liquidity"]),
-            None if _is_nan(r.get("score_solvency", _nan()))      else float(r["score_solvency"]),
+            _f(r.get("pe")), _f(r.get("ev_ebitda")), _f(r.get("roe")),
+            _f(r.get("debt_equity")), _f(r.get("revenue_growth")),
+            _f(r.get("ranking_score")), r.get("cluster_rank"),
+            _f(r.get("score_trends")), _f(r.get("score_cashflow")),
+            _f(r.get("score_profitability")), _f(r.get("score_valuation")),
+            _f(r.get("score_liquidity")), _f(r.get("score_solvency")),
         ))
     if not rows:
         return 0
-    con = psycopg2.connect(pool_dsn)
-    cur = con.cursor()
-    cur.executemany(
-        """
+
+    sql = """
         INSERT INTO fundamentals
           (ticker, updated, source, pe, ev_ebitda, roe, debt_equity, revenue_growth,
            ranking_score, ranking_pos, score_trends, score_cashflow, score_profitability,
            score_valuation, score_liquidity, score_solvency)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         ON CONFLICT (ticker, updated, source) DO UPDATE SET
           pe=EXCLUDED.pe, ev_ebitda=EXCLUDED.ev_ebitda, roe=EXCLUDED.roe,
           debt_equity=EXCLUDED.debt_equity, ranking_score=EXCLUDED.ranking_score,
           ranking_pos=EXCLUDED.ranking_pos, score_trends=EXCLUDED.score_trends,
-          score_cashflow=EXCLUDED.score_cashflow, score_profitability=EXCLUDED.score_profitability,
+          score_cashflow=EXCLUDED.score_cashflow,
+          score_profitability=EXCLUDED.score_profitability,
           score_valuation=EXCLUDED.score_valuation, score_liquidity=EXCLUDED.score_liquidity,
           score_solvency=EXCLUDED.score_solvency
-        """,
-        rows,
-    )
-    con.commit()
-    con.close()
+    """
+
+    async def _run():
+        con = await asyncpg.connect(pool_dsn)
+        try:
+            await con.executemany(sql, rows)
+        finally:
+            await con.close()
+
+    asyncio.run(_run())
     return len(rows)
