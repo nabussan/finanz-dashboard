@@ -46,8 +46,8 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
     if cluster_id is not None:
         rows = await pool.fetch(
             f"""
-            SELECT f.ticker, f.updated, f.source,
-                   f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.revenue_growth,
+            SELECT f.ticker, f.updated, f.source, f.exchange,
+                   f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.roic, f.revenue_growth,
                    f.ranking_score, f.ranking_pos{sub_cols_f}
             FROM fundamentals f
             JOIN watchlist_items wi
@@ -62,8 +62,8 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
     else:
         rows = await pool.fetch(
             f"""
-            SELECT ticker, updated, source,
-                   pe, ev_ebitda, roe, debt_equity, revenue_growth,
+            SELECT ticker, updated, source, exchange,
+                   pe, ev_ebitda, roe, debt_equity, roic, revenue_growth,
                    ranking_score, ranking_pos{sub_cols_bare}
             FROM fundamentals
             WHERE updated = (SELECT MAX(updated) FROM fundamentals)

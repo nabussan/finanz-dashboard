@@ -120,10 +120,12 @@ CREATE TABLE IF NOT EXISTS fundamentals (
     ticker         TEXT    NOT NULL,
     updated        DATE    NOT NULL,
     source         TEXT    NOT NULL DEFAULT 'tv',
+    exchange       TEXT    NOT NULL DEFAULT '',
     pe             NUMERIC,
     ev_ebitda      NUMERIC,
     roe            NUMERIC,
     debt_equity    NUMERIC,
+    roic           NUMERIC,
     revenue_growth NUMERIC,
     ranking_score        NUMERIC,
     ranking_pos          INT,
@@ -136,3 +138,17 @@ CREATE TABLE IF NOT EXISTS fundamentals (
     PRIMARY KEY (ticker, updated, source)
 );
 CREATE INDEX IF NOT EXISTS fundamentals_updated_idx ON fundamentals(updated DESC);
+
+-- Wochenkurse für alle Micro-Ticker (von IBKR reqHistoricalData)
+CREATE TABLE IF NOT EXISTS prices (
+    ticker   TEXT    NOT NULL,
+    exchange TEXT    NOT NULL DEFAULT '',
+    date     DATE    NOT NULL,
+    open     NUMERIC,
+    high     NUMERIC,
+    low      NUMERIC,
+    close    NUMERIC,
+    volume   BIGINT,
+    PRIMARY KEY (ticker, exchange, date)
+);
+CREATE INDEX IF NOT EXISTS prices_ticker_date_idx ON prices (ticker, exchange, date DESC);

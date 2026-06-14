@@ -270,6 +270,7 @@ def _extract(data: dict, ticker: str) -> dict[str, float]:
     m["ev_ebitda"] = m.get("Enterprise value to EBITDA ratio", _nan())
     m["roe"] = m.get("Return on equity %", _nan())
     m["debt_equity"] = m.get("Debt to equity ratio", _nan())
+    m["roic"] = m.get("Return on invested capital %", _nan())
     m["revenue_growth"] = _nan()  # nicht direkt in JSON; wird nicht angezeigt
 
     # Exchange für Anzeige
@@ -507,7 +508,7 @@ def score_tickers(
         "ticker", "exchange", "cluster_rank", "ranking_score", "negative",
         "score_trends", "score_cashflow", "score_profitability",
         "score_valuation", "score_liquidity", "score_solvency",
-        "pe", "ev_ebitda", "roe", "debt_equity", "revenue_growth",
+        "pe", "ev_ebitda", "roe", "debt_equity", "roic", "revenue_growth",
     }
     return [{k: v for k, v in r.items() if k in clean_keys} for r in all_out]
 
@@ -531,30 +532,33 @@ def write_to_db_sync(records: list[dict], pool_dsn: str) -> int:
             continue
         rows.append((
             ticker, today, "tv",
+            r.get("exchange", ""),
             _f(r.get("pe")), _f(r.get("ev_ebitda")), _f(r.get("roe")),
             _f(r.get("debt_equity")), _f(r.get("revenue_growth")),
             _f(r.get("ranking_score")), r.get("cluster_rank"),
             _f(r.get("score_trends")), _f(r.get("score_cashflow")),
             _f(r.get("score_profitability")), _f(r.get("score_valuation")),
             _f(r.get("score_liquidity")), _f(r.get("score_solvency")),
+            _f(r.get("roic")),
         ))
     if not rows:
         return 0
 
     sql = """
         INSERT INTO fundamentals
-          (ticker, updated, source, pe, ev_ebitda, roe, debt_equity, revenue_growth,
+          (ticker, updated, source, exchange, pe, ev_ebitda, roe, debt_equity, revenue_growth,
            ranking_score, ranking_pos, score_trends, score_cashflow, score_profitability,
-           score_valuation, score_liquidity, score_solvency)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+           score_valuation, score_liquidity, score_solvency, roic)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
         ON CONFLICT (ticker, updated, source) DO UPDATE SET
+          exchange=EXCLUDED.exchange,
           pe=EXCLUDED.pe, ev_ebitda=EXCLUDED.ev_ebitda, roe=EXCLUDED.roe,
           debt_equity=EXCLUDED.debt_equity, ranking_score=EXCLUDED.ranking_score,
           ranking_pos=EXCLUDED.ranking_pos, score_trends=EXCLUDED.score_trends,
           score_cashflow=EXCLUDED.score_cashflow,
           score_profitability=EXCLUDED.score_profitability,
           score_valuation=EXCLUDED.score_valuation, score_liquidity=EXCLUDED.score_liquidity,
-          score_solvency=EXCLUDED.score_solvency
+          score_solvency=EXCLUDED.score_solvency, roic=EXCLUDED.roic
     """
 
     async def _run():
