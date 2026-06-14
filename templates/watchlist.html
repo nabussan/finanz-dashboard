@@ -88,6 +88,7 @@
       </div>
       <div class="ticker-stats">
         <span class="ticker-stat {{ score_class(p.score) }}">Scr&nbsp;{{ "%.0f"|format(p.score) if p.score is not none else "—" }}</span>
+        <span class="ticker-stat {{ z_class(p.z_score) }}">z&nbsp;{{ "%+.1f"|format(p.z_score) if p.z_score is not none else "—" }}</span>
         <span class="ticker-stat {{ ivr_class(p.iv_rank) }}">IVR&nbsp;{{ "%.0f"|format(p.iv_rank) if p.iv_rank is not none else "—" }}</span>
         <span class="ticker-stat {{ vrp_class(p.vrp) }}">VRP&nbsp;{{ "%.1f"|format(p.vrp) if p.vrp is not none else "—" }}</span>
         <span class="ticker-stat {{ rend_class(p.ann_return) }}">{{ "%+.0f%%"|format(p.ann_return) if p.ann_return is not none else "—" }}</span>

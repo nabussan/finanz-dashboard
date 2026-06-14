@@ -30,11 +30,16 @@ def _rend_class(v):
     if v is None: return ""
     return "ticker-stat--green" if v > 20 else "ticker-stat--orange" if v > 10 else "ticker-stat--red" if v < 0 else ""
 
+def _z_class(v):
+    if v is None: return ""
+    return "ticker-stat--green" if v > 0.5 else "ticker-stat--red" if v < -0.5 else "ticker-stat--orange"
+
 templates.env.globals.update(
     score_class=_score_class,
     ivr_class=_ivr_class,
     vrp_class=_vrp_class,
     rend_class=_rend_class,
+    z_class=_z_class,
 )
 
 
@@ -132,10 +137,10 @@ async def watchlist_page(request: Request, wl_id: int,
             wi.tv_symbol,
             wi.ticker,
             wi.added,
-            s.score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
+            s.score, s.z_score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
         FROM watchlist_items wi
         LEFT JOIN LATERAL (
-            SELECT score, iv_rank, vrp, ann_return, signal, klasse
+            SELECT score, z_score, iv_rank, vrp, ann_return, signal, klasse
             FROM signals
             WHERE ticker = wi.tv_symbol
             ORDER BY run_date DESC LIMIT 1

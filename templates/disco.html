@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
-{% block title %}disco RRG{% endblock %}
+{% block title %}Disco{% endblock %}
 {% block content %}
 {% if html_available %}
   <iframe src="/disco-chart" class="fullscreen-iframe"></iframe>
 {% else %}
   <div class="offline-box">
-    <h2>disco RRG</h2>
+    <h2>Disco</h2>
     <p class="offline">Kein Chart verfügbar. Bitte disco-Run ausführen:<br>
     <code>python3 disco/src/report.py --scan</code></p>
     <p>Erwartet: <code>{{ config.DISCO_LATEST_HTML if config else "disco/output/discovery_latest.html" }}</code></p>

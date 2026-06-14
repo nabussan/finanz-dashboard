@@ -1,44 +1,137 @@
 {% extends "layout.html" %}
-{% block title %}RSM Signale{% endblock %}
+{% block title %}RSM Gesamt{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
 {% block content %}
-<h1>RSM Signale
-  {% if last_run %}<span class="subtitle">Run: {{ last_run }}</span>{% endif %}
-</h1>
-
-{% if not signals %}
-  <p class="offline">Keine Signaldaten. Bitte run_w3.py ausführen.</p>
-{% else %}
-<div class="table-wrap">
-<table>
-  <thead>
-    <tr>
-      <th><a href="/rsm?sort=ticker">Ticker</a></th>
-      <th><a href="/rsm?sort=signal">Signal</a></th>
-      <th><a href="/rsm?sort=score">Score ↓</a></th>
-      <th><a href="/rsm?sort=z_score">z-Score</a></th>
-      <th><a href="/rsm?sort=iv_rank">IV Rank</a></th>
-      <th>VRP</th>
-      <th>Ann%</th>
-      <th>Klasse</th>
-      <th>Chart</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for s in signals %}
-    <tr class="signal--{{ s.signal | lower if s.signal else 'wait' }}">
-      <td>{{ s.ticker }}</td>
-      <td><span class="badge badge--{{ s.signal | lower if s.signal else 'wait' }}">{{ s.signal or "—" }}</span></td>
-      <td>{{ "%.1f"|format(s.score) if s.score is not none else "—" }}</td>
-      <td>{{ "%+.2f"|format(s.z_score) if s.z_score is not none else "—" }}</td>
-      <td>{{ "%.0f"|format(s.iv_rank) if s.iv_rank is not none else "—" }}</td>
-      <td>{{ "%.1f"|format(s.vrp) if s.vrp is not none else "—" }}</td>
-      <td>{{ "%.0f"|format(s.ann_return) if s.ann_return is not none else "—" }}</td>
-      <td>{{ s.klasse or "—" }}</td>
-      <td><a href="https://www.tradingview.com/chart/?symbol={{ s.ticker }}" target="_blank">TV</a></td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="rsm-header">
+  <nav class="rsm-filter-nav">
+    <button class="rsm-filter-btn rsm-filter-btn--active" data-filter="all">Alle</button>
+    <button class="rsm-filter-btn rsm-filter-btn--buy"  data-filter="buy">BUY</button>
+    <button class="rsm-filter-btn rsm-filter-btn--sell" data-filter="sell">SELL</button>
+    <button class="rsm-filter-btn rsm-filter-btn--hold" data-filter="hold">HOLD</button>
+    <button class="rsm-filter-btn rsm-filter-btn--wait" data-filter="wait">WAIT</button>
+  </nav>
+  {% if last_run %}<span class="rsm-run-date">Run: {{ last_run }}</span>{% endif %}
 </div>
-{% endif %}
+
+<div class="rsm-split">
+
+  {# ── Chart-Panel (links) ──────────────────────────────── #}
+  <div class="chart-panel">
+    <iframe id="chart-frame" src="/portfolio-charts" title="RSM Chart"></iframe>
+  </div>
+
+  {# ── Signal-Panel (rechts) ────────────────────────────── #}
+  <div class="rsm-signal-panel">
+    {% if not signals %}
+      <div class="offline-box">
+        <p class="offline">Keine Signaldaten. Bitte run_w3.py ausführen.</p>
+      </div>
+    {% else %}
+    <table class="rsm-table">
+      <thead>
+        <tr>
+          <th><a href="/rsm?sort=ticker">Ticker</a></th>
+          <th><a href="/rsm?sort=signal">Signal</a></th>
+          <th><a href="/rsm?sort=score">Score ↓</a></th>
+          <th><a href="/rsm?sort=z_score">z-Scr</a></th>
+          <th><a href="/rsm?sort=iv_rank">IVR</a></th>
+          <th>VRP</th>
+          <th>Ann%</th>
+          <th>Klasse</th>
+        </tr>
+      </thead>
+      <tbody id="rsm-tbody">
+      {% for s in signals %}
+      {%- set anchor = "pnl-" + s.ticker | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
+      {%- set sig = (s.signal or 'wait') | lower -%}
+      {%- set sym = s.ticker.split(':')[1] if ':' in s.ticker else s.ticker -%}
+      <tr class="signal-row signal-row--{{ sig }} {% if sig in ('buy','sell','hold') %}rsm-{{ sig }}{% endif %}"
+          data-signal="{{ sig }}"
+          data-anchor="{{ anchor }}"
+          onclick="switchToTicker(this)">
+        <td class="ticker-cell">{{ sym }}</td>
+        <td><span class="badge badge--{{ sig }}">{{ s.signal or "—" }}</span></td>
+        <td>
+          <div class="score-wrap">
+            <span>{{ "%.1f"|format(s.score) if s.score is not none else "—" }}</span>
+            {% if s.score is not none %}
+            <div class="score-bar"><div class="score-fill" style="width:{{ [s.score|int, 100]|min }}%"></div></div>
+            {% endif %}
+          </div>
+        </td>
+        <td>{{ "%+.2f"|format(s.z_score) if s.z_score is not none else "—" }}</td>
+        <td>{{ "%.0f"|format(s.iv_rank) if s.iv_rank is not none else "—" }}</td>
+        <td>{{ "%.1f"|format(s.vrp) if s.vrp is not none else "—" }}</td>
+        <td>{{ "%.0f"|format(s.ann_return) if s.ann_return is not none else "—" }}</td>
+        <td>{{ s.klasse or "—" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const iframe = document.getElementById('chart-frame');
+  let chartLoaded = false;
+  let pendingAnchor = null;
+
+  function callInFrame(anchor) {
+    try {
+      const cw = iframe && iframe.contentWindow;
+      if (!cw) return;
+      if (typeof cw.activateTab === 'function') {
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+    }
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', function () {
+      chartLoaded = true;
+      const target = pendingAnchor;
+      pendingAnchor = null;
+      if (target) {
+        callInFrame(target);
+      } else {
+        const first = document.querySelector('.signal-row:not(.rsm-hidden)');
+        if (first) callInFrame(first.dataset.anchor);
+      }
+    });
+  }
+
+  window.switchToTicker = function (row) {
+    document.querySelectorAll('.signal-row').forEach(function (r) {
+      r.classList.remove('signal-row--active');
+    });
+    row.classList.add('signal-row--active');
+    const anchor = row.dataset.anchor;
+    if (!anchor) return;
+    if (chartLoaded) callInFrame(anchor);
+    else pendingAnchor = anchor;
+  };
+
+  document.querySelectorAll('.rsm-filter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const filter = btn.dataset.filter;
+      document.querySelectorAll('.rsm-filter-btn').forEach(function (b) {
+        b.classList.remove('rsm-filter-btn--active');
+      });
+      btn.classList.add('rsm-filter-btn--active');
+      document.querySelectorAll('.signal-row').forEach(function (row) {
+        const match = filter === 'all' || row.dataset.signal === filter;
+        row.classList.toggle('rsm-hidden', !match);
+      });
+    });
+  });
+}());
+</script>
 {% endblock %}
