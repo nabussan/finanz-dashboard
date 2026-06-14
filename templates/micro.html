@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block title %}Micro Rankings{% endblock %}
+{% block content %}
+<h1>Micro Rankings
+  {% if source == "json-fallback" %}
+    <span class="badge badge--warn">JSON-Fallback</span>
+  {% endif %}
+</h1>
+
+{% if not json_dir_ok and not tickers %}
+  <p class="offline">Micro-JSON-Verzeichnis nicht erreichbar und keine DB-Daten vorhanden.</p>
+{% elif not tickers %}
+  <p class="offline">Keine Fundamentaldaten. Bitte micro/src/130_*.py ausführen.</p>
+{% else %}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Ticker</th>
+      <th>Source</th>
+      <th>Score</th>
+      <th>P/E</th>
+      <th>EV/EBITDA</th>
+      <th>ROE%</th>
+      <th>D/E</th>
+      <th>Rev.Growth%</th>
+      <th>Chart</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in tickers %}
+    <tr>
+      <td>{{ t.ranking_pos or loop.index }}</td>
+      <td>{{ t.ticker }}</td>
+      <td><span class="badge badge--source">{{ t.source or "tv" }}</span></td>
+      <td>{{ "%.1f"|format(t.ranking_score) if t.ranking_score is not none else "—" }}</td>
+      <td>{{ "%.1f"|format(t.pe) if t.pe is not none else "—" }}</td>
+      <td>{{ "%.1f"|format(t.ev_ebitda) if t.ev_ebitda is not none else "—" }}</td>
+      <td>{{ "%.1f"|format(t.roe) if t.roe is not none else "—" }}</td>
+      <td>{{ "%.2f"|format(t.debt_equity) if t.debt_equity is not none else "—" }}</td>
+      <td>{{ "%.1f"|format(t.revenue_growth) if t.revenue_growth is not none else "—" }}</td>
+      <td><a href="https://www.tradingview.com/chart/?symbol={{ t.ticker }}" target="_blank">TV</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

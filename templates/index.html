@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block title %}Übersicht — Finanz{% endblock %}
+{% block content %}
+<h1>Übersicht</h1>
+<div class="cards">
+  {% for s in systems %}
+  <a href="{{ s.url }}" class="card card--{{ s.status }}">
+    <div class="card-name">{{ s.name }}</div>
+    <div class="card-label">{{ s.label }}</div>
+    <div class="card-dot"></div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if request.query_params.get('triggered') %}
+<div class="admin-notice">
+  ✓ Gestartet: {{ request.query_params.get('triggered') }} — Log: <a href="/admin/log?task=w3" target="_blank">W3-Log</a> | <a href="/admin/log?task=eod" target="_blank">EOD-Log</a>
+</div>
+{% endif %}
+
+<h2 style="margin-top: 32px;">Pipeline manuell starten</h2>
+<div class="admin-grid">
+  <form method="post" action="/admin/run/eod">
+    <button class="admin-btn">
+      <span class="admin-btn-label">OHLCV-Preisdaten</span>
+      <span class="admin-btn-hint">eod_update.py --skip-ibkr</span>
+    </button>
+  </form>
+  <form method="post" action="/admin/run/iv">
+    <button class="admin-btn">
+      <span class="admin-btn-label">IV-Daten (IBKR)</span>
+      <span class="admin-btn-hint">run_w3.py --ibkr-only</span>
+    </button>
+  </form>
+  <form method="post" action="/admin/run/scores">
+    <button class="admin-btn">
+      <span class="admin-btn-label">W3-Scores berechnen</span>
+      <span class="admin-btn-hint">run_w3.py --skip-update</span>
+    </button>
+  </form>
+  <form method="post" action="/admin/run/charts">
+    <button class="admin-btn">
+      <span class="admin-btn-label">Charts neu generieren</span>
+      <span class="admin-btn-hint">make_charts.py</span>
+    </button>
+  </form>
+  <form method="post" action="/admin/run/full">
+    <button class="admin-btn admin-btn--full">
+      <span class="admin-btn-label">Alles (Full Pipeline)</span>
+      <span class="admin-btn-hint">EOD + IV + Scores + Charts</span>
+    </button>
+  </form>
+</div>
+{% endblock %}

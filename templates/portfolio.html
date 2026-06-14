@@ -1,0 +1,189 @@
+{% extends "layout.html" %}
+{% block body_class %}portfolio-page{% endblock %}
+{% block title %}Portfolios{% endblock %}
+{% block content %}
+
+{# ── Header: Broker-Tabs ──────────────────────────────────────── #}
+<div class="portfolio-header">
+  <nav class="tab-nav">
+    <a href="/portfolios?broker=ibkr"
+       class="tab-link{% if active_broker == 'ibkr' %} tab-link--active{% endif %}">IBKR</a>
+    <a href="/portfolios?broker=ibkr-h"
+       class="tab-link{% if active_broker == 'ibkr-h' %} tab-link--active{% endif %}">IBKR-H</a>
+    <a href="/portfolios?broker=sonstige"
+       class="tab-link{% if active_broker == 'sonstige' %} tab-link--active{% endif %}">Sonstige</a>
+  </nav>
+</div>
+
+{% if not positions %}
+  <div class="wl-empty">
+    Keine Positionen für <strong>{{ active_broker | upper }}</strong>.
+    <br><small>Sync: <code>portfolio_alert.py --sync-only</code></small>
+  </div>
+
+{% else %}
+{# ── Split-Pane ────────────────────────────────────────────────── #}
+<div class="wl-split">
+
+  {# ── Links: Position-Info + Chart-Iframe ─────────────────────── #}
+  <div class="portfolio-left-panel">
+
+    {# ── Positions-Info-Bar ──────────────────────────────────────── #}
+    <div class="pos-info-bar">
+      <span class="pos-field">
+        <span class="pos-label">Ticker</span>
+        <span class="pos-value" id="pos-ticker">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Kauf</span>
+        <span class="pos-value" id="pos-entry-date">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Preis</span>
+        <span class="pos-value" id="pos-entry-price">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Qty</span>
+        <span class="pos-value" id="pos-qty">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Aktuell</span>
+        <span class="pos-value" id="pos-current">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">P&amp;L</span>
+        <span class="pos-value" id="pos-pnl">—</span>
+      </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Stop</span>
+        <span class="pos-value" id="pos-stop">—</span>
+      </span>
+    </div>
+
+    {# ── Chart-Panel ─────────────────────────────────────────────── #}
+    <div class="chart-panel">
+      {% if charts_available %}
+      <iframe id="chart-frame"
+              src="/portfolio-charts"
+              title="RSM Chart"></iframe>
+      {% else %}
+      <div class="chart-placeholder">
+        Positionscharts nicht verfügbar — <code>make_charts.py</code> ausführen.
+      </div>
+      {% endif %}
+    </div>
+
+  </div>{# /portfolio-left-panel #}
+
+  {# ── Rechts: Ticker-Liste ────────────────────────────────────── #}
+  <div class="ticker-panel">
+
+    {% for p in positions %}
+    {%- set tv = p.tv_symbol or p.ticker -%}
+    {%- set anchor = "pnl-" + tv | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
+    <div class="ticker-item ticker-item--{{ (p.signal or 'none') | lower }}{% if loop.first %} ticker-item--active{% endif %}"
+         data-anchor="{{ anchor }}"
+         data-ticker="{{ tv }}"
+         data-entry-date="{{ p.entry_date.strftime('%Y-%m-%d') if p.entry_date else '' }}"
+         data-entry-price="{{ '%.2f' | format(p.entry_price) if p.entry_price is not none else '' }}"
+         data-qty="{{ '%.0f' | format(p.qty) if p.qty is not none else '' }}"
+         data-current="{{ '%.2f' | format(p.current_price) if p.current_price is not none else '' }}"
+         data-pnl="{{ '%+.2f' | format(p.pnl_pct) if p.pnl_pct is not none else '' }}"
+         data-stop="{{ '%.2f' | format(p.stop_price) if p.stop_price is not none else '' }}"
+         onclick="switchChart(this)">
+      <div class="ticker-symbol">
+        {{ tv }}
+        {% if p.signal %}
+        <span class="badge badge--{{ p.signal | lower }}" style="font-size:9px; padding:1px 5px;">{{ p.signal }}</span>
+        {% endif %}
+      </div>
+      <div class="ticker-stats">
+        <span class="ticker-stat {{ score_class(p.score) }}">Scr&nbsp;{{ "%.0f" | format(p.score) if p.score is not none else "—" }}</span>
+        <span class="ticker-stat {{ ivr_class(p.iv_rank) }}">IVR&nbsp;{{ "%.0f" | format(p.iv_rank) if p.iv_rank is not none else "—" }}</span>
+        <span class="ticker-stat {{ vrp_class(p.vrp) }}">VRP&nbsp;{{ "%.1f" | format(p.vrp) if p.vrp is not none else "—" }}</span>
+        <span class="ticker-stat {{ rend_class(p.ann_return) }}">{{ "%+.0f%%" | format(p.ann_return) if p.ann_return is not none else "—" }}</span>
+      </div>
+    </div>
+    {% endfor %}
+
+  </div>{# /ticker-panel #}
+
+</div>{# /wl-split #}
+{% endif %}
+
+<script>
+(function () {
+  const iframe = document.getElementById('chart-frame');
+  let chartLoaded = false;
+  let pendingAnchor = null;
+
+  function updatePosInfo(el) {
+    document.getElementById('pos-ticker').textContent    = el.dataset.ticker || '—';
+    document.getElementById('pos-entry-date').textContent = el.dataset.entryDate || '—';
+    document.getElementById('pos-entry-price').textContent = el.dataset.entryPrice || '—';
+    document.getElementById('pos-qty').textContent       = el.dataset.qty || '—';
+    document.getElementById('pos-current').textContent   = el.dataset.current || '—';
+    document.getElementById('pos-stop').textContent      = el.dataset.stop || '—';
+
+    const pnlEl = document.getElementById('pos-pnl');
+    const pnl   = el.dataset.pnl;
+    pnlEl.textContent = pnl ? pnl + '%' : '—';
+    pnlEl.className   = 'pos-value' + (pnl && parseFloat(pnl) >= 0 ? ' pos-pnl-pos' : pnl ? ' pos-pnl-neg' : '');
+  }
+
+  function callInFrame(anchor) {
+    try {
+      const cw = iframe && iframe.contentWindow;
+      if (!cw) return;
+      if (typeof cw.activateTab === 'function') {
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+    }
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', function () {
+      chartLoaded = true;
+      const target = pendingAnchor;
+      pendingAnchor = null;
+      if (target) {
+        callInFrame(target);
+      } else {
+        const first = document.querySelector('.ticker-item[data-anchor]');
+        if (first) callInFrame(first.dataset.anchor);
+      }
+    });
+  }
+
+  // Init pos-info-bar with first ticker on page load
+  const firstItem = document.querySelector('.ticker-item[data-anchor]');
+  if (firstItem) updatePosInfo(firstItem);
+
+  window.switchChart = function (el) {
+    const anchor = el.dataset.anchor;
+    if (!anchor) return;
+    document.querySelectorAll('.ticker-item').forEach(function (t) {
+      t.classList.remove('ticker-item--active');
+    });
+    el.classList.add('ticker-item--active');
+    updatePosInfo(el);
+    if (chartLoaded) {
+      callInFrame(anchor);
+    } else {
+      pendingAnchor = anchor;
+    }
+  };
+}());
+</script>
+{% endblock %}

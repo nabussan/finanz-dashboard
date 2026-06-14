@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Finanz Dashboard{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <nav class="sidebar">
+    <div class="sidebar-title">Finanz</div>
+    <ul>
+      <li><a href="/"        {% if request.url.path == "/" %}class="active"{% endif %}>Übersicht</a></li>
+      <li><a href="/rsm"     {% if request.url.path == "/rsm" %}class="active"{% endif %}>RSM Signale</a></li>
+      <li><a href="/portfolios"  {% if request.url.path.startswith("/portfolios") %}class="active"{% endif %}>Portfolios</a></li>
+      <li><a href="/watchlists"  {% if request.url.path.startswith("/watchlists") %}class="active"{% endif %}>Watchlists</a></li>
+      <li><a href="/disco"   {% if request.url.path == "/disco" %}class="active"{% endif %}>disco RRG</a></li>
+      <li><a href="/micro"   {% if request.url.path == "/micro" %}class="active"{% endif %}>Micro</a></li>
+    </ul>
+  </nav>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

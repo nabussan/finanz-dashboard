@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block title %}RSM Signale{% endblock %}
+{% block content %}
+<h1>RSM Signale
+  {% if last_run %}<span class="subtitle">Run: {{ last_run }}</span>{% endif %}
+</h1>
+
+{% if not signals %}
+  <p class="offline">Keine Signaldaten. Bitte run_w3.py ausführen.</p>
+{% else %}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th><a href="/rsm?sort=ticker">Ticker</a></th>
+      <th><a href="/rsm?sort=signal">Signal</a></th>
+      <th><a href="/rsm?sort=score">Score ↓</a></th>
+      <th><a href="/rsm?sort=z_score">z-Score</a></th>
+      <th><a href="/rsm?sort=iv_rank">IV Rank</a></th>
+      <th>VRP</th>
+      <th>Ann%</th>
+      <th>Klasse</th>
+      <th>Chart</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for s in signals %}
+    <tr class="signal--{{ s.signal | lower if s.signal else 'wait' }}">
+      <td>{{ s.ticker }}</td>
+      <td><span class="badge badge--{{ s.signal | lower if s.signal else 'wait' }}">{{ s.signal or "—" }}</span></td>
+      <td>{{ "%.1f"|format(s.score) if s.score is not none else "—" }}</td>
+      <td>{{ "%+.2f"|format(s.z_score) if s.z_score is not none else "—" }}</td>
+      <td>{{ "%.0f"|format(s.iv_rank) if s.iv_rank is not none else "—" }}</td>
+      <td>{{ "%.1f"|format(s.vrp) if s.vrp is not none else "—" }}</td>
+      <td>{{ "%.0f"|format(s.ann_return) if s.ann_return is not none else "—" }}</td>
+      <td>{{ s.klasse or "—" }}</td>
+      <td><a href="https://www.tradingview.com/chart/?symbol={{ s.ticker }}" target="_blank">TV</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

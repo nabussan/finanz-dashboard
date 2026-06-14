@@ -1,0 +1,200 @@
+{% extends "layout.html" %}
+{% block body_class %}watchlist-page{% endblock %}
+{% block title %}Watchlists{% endblock %}
+{% block content %}
+
+{# ── Header: Watchlist-Tabs + Toolbar ──────────────────────────── #}
+<div class="wl-header">
+  <nav class="tab-nav">
+    {% for wl in all_watchlists %}
+    <span class="tab-item">
+      <a href="/watchlists/{{ wl.id }}"
+         class="tab-link{% if active_wl and active_wl.id == wl.id %} tab-link--active{% endif %}">
+        {{ wl.name }}
+      </a>
+      <form method="post" action="/watchlists/{{ wl.id }}/delete" class="tab-delete-form"
+            onsubmit="return confirm('Watchlist »{{ wl.name }}« löschen?')">
+        <button type="submit" class="tab-delete-btn" title="Watchlist löschen">×</button>
+      </form>
+    </span>
+    {% endfor %}
+  </nav>
+
+  <div class="wl-toolbar">
+    <form method="post" action="/watchlists/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title="TradingView .txt hochladen — Dateiname = Watchlist-Name">
+        ⊕ Datei
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+      </label>
+    </form>
+    <form method="post" action="/watchlists" class="wl-new-form">
+      <input type="text" name="name" placeholder="Neue Watchlist…" required class="wl-name-input" style="width:140px;">
+      <button type="submit" class="btn-secondary">+ Anlegen</button>
+    </form>
+  </div>
+</div>
+
+{# ── Import-Notice (Flash) ─────────────────────────────────────── #}
+{% if imported %}
+<div class="wl-notice{% if missing %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
+  {{ imported }} Symbol(e) importiert.
+  {% if missing %}
+    <strong>{{ missing }} ohne Kursdaten</strong> — noch kein eod_update.py-Lauf.
+  {% else %}
+    Alle Ticker haben Kursdaten.
+  {% endif %}
+</div>
+{% endif %}
+
+{% if active_wl is none %}
+  <div class="wl-empty">Noch keine Watchlists — Datei hochladen oder oben anlegen.</div>
+
+{% else %}
+{# ── Split-Pane: Chart LINKS, Ticker-Liste RECHTS ─────────────── #}
+<div class="wl-split">
+
+  {# ── 1. Chart-Panel (links, flex: 1) ──────────────────────── #}
+  <div class="chart-panel">
+    {% if charts_available %}
+    <iframe id="chart-frame"
+            src="/portfolio-charts"
+            title="RSM Chart"></iframe>
+    {% else %}
+    <div class="chart-placeholder">
+      Positionscharts nicht verfügbar — <code>make_charts.py</code> ausführen.
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 2. Ticker-Panel (rechts, 260px) ───────────────────────── #}
+  <div class="ticker-panel">
+
+    {% if not items %}
+      <div style="padding: 16px 12px; color: var(--muted); font-size: 13px;">
+        Leere Watchlist
+      </div>
+    {% endif %}
+
+    {% for p in items %}
+    {%- set anchor = "pnl-" + p.tv_symbol | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
+    <div class="ticker-item ticker-item--{{ (p.signal or 'none') | lower }}{% if loop.first %} ticker-item--active{% endif %}"
+         data-anchor="{{ anchor }}"
+         onclick="switchChart(this)">
+      <div class="ticker-symbol">
+        {{ p.tv_symbol }}
+        {% if p.signal %}
+        <span class="badge badge--{{ p.signal | lower }}" style="font-size:9px; padding:1px 5px;">{{ p.signal }}</span>
+        {% endif %}
+      </div>
+      <div class="ticker-stats">
+        <span class="ticker-stat {{ score_class(p.score) }}">Scr&nbsp;{{ "%.0f"|format(p.score) if p.score is not none else "—" }}</span>
+        <span class="ticker-stat {{ ivr_class(p.iv_rank) }}">IVR&nbsp;{{ "%.0f"|format(p.iv_rank) if p.iv_rank is not none else "—" }}</span>
+        <span class="ticker-stat {{ vrp_class(p.vrp) }}">VRP&nbsp;{{ "%.1f"|format(p.vrp) if p.vrp is not none else "—" }}</span>
+        <span class="ticker-stat {{ rend_class(p.ann_return) }}">{{ "%+.0f%%"|format(p.ann_return) if p.ann_return is not none else "—" }}</span>
+      </div>
+    </div>
+    {% endfor %}
+
+    {# ── Verwaltungs-Sektion am Ende des Panels ──────────────── #}
+    <details class="ticker-panel-admin">
+      <summary>⚙ Verwalten</summary>
+      <div class="ticker-panel-admin-body">
+
+        {% if items %}
+        <div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">Ticker entfernen:</div>
+          {% for p in items %}
+          <form method="post" action="/watchlists/{{ active_wl.id }}/delete-item"
+                class="inline-form" style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">
+            <input type="hidden" name="tv_symbol" value="{{ p.tv_symbol }}">
+            <span style="font-size:11px; flex:1;">{{ p.tv_symbol }}</span>
+            <button type="submit" class="btn-delete" title="Entfernen">×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <details>
+          <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Importieren…</summary>
+          <form method="post" action="/watchlists/{{ active_wl.id }}/import" style="margin-top:6px;">
+            <textarea name="content" rows="4"
+                      style="width:100%; background:var(--bg); color:var(--text);
+                             border:1px solid var(--border); border-radius:4px;
+                             padding:4px; font-size:11px; font-family:monospace;"
+                      placeholder="NASDAQ:AAPL,NYSE:SPY"></textarea>
+            <button type="submit" class="btn-primary"
+                    style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
+          </form>
+        </details>
+
+        <form method="post" action="/watchlists/{{ active_wl.id }}/delete"
+              onsubmit="return confirm('Watchlist »{{ active_wl.name }}« und alle {{ items|length }} Einträge löschen?')">
+          <button type="submit" class="btn-danger"
+                  style="font-size:11px; padding:4px 10px; width:100%;">
+            Watchlist löschen
+          </button>
+        </form>
+
+      </div>
+    </details>
+
+  </div>{# /ticker-panel #}
+
+</div>{# /wl-split #}
+{% endif %}
+
+<script>
+(function () {
+  const iframe = document.getElementById('chart-frame');
+  let chartLoaded = false;
+  let pendingAnchor = null;
+
+  function callInFrame(anchor) {
+    try {
+      const cw = iframe && iframe.contentWindow;
+      if (!cw) return;
+      // Direct function call (same-origin) — more reliable than hash-change
+      if (typeof cw.activateTab === 'function') {
+        // Make all tickers accessible (no list filter)
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        // Fallback: trigger hashchange
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+    }
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', function () {
+      chartLoaded = true;
+      const target = pendingAnchor;
+      pendingAnchor = null;
+      if (target) {
+        callInFrame(target);
+      } else {
+        // Activate first ticker in our list after iframe loads
+        const first = document.querySelector('.ticker-item[data-anchor]');
+        if (first) callInFrame(first.dataset.anchor);
+      }
+    });
+  }
+
+  window.switchChart = function (el) {
+    const anchor = el.dataset.anchor;
+    if (!anchor) return;
+    document.querySelectorAll('.ticker-item').forEach(function (t) {
+      t.classList.remove('ticker-item--active');
+    });
+    el.classList.add('ticker-item--active');
+    if (chartLoaded) {
+      callInFrame(anchor);
+    } else {
+      pendingAnchor = anchor;
+    }
+  };
+}());
+</script>
+{% endblock %}

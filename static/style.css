@@ -1,0 +1,748 @@
+/* Finanz Dashboard — Dark Theme */
+
+:root {
+  --bg:        #0f1117;
+  --surface:   #1a1d26;
+  --border:    #2a2d3a;
+  --text:      #e2e4ec;
+  --muted:     #8892a4;
+  --green:     #3ddc84;
+  --red:       #ff5f5f;
+  --orange:    #f0a500;
+  --blue:      #4f8ef7;
+  --sidebar-w: 180px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  display: flex;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Sidebar ────────────────────────────────────── */
+
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--blue);
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.sidebar ul { list-style: none; }
+
+.sidebar a {
+  display: block;
+  padding: 9px 20px;
+  color: var(--muted);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+
+.sidebar a:hover  { color: var(--text); }
+.sidebar a.active { color: var(--text); border-left-color: var(--blue); background: rgba(79,142,247,.08); }
+
+/* ── Main content ───────────────────────────────── */
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 28px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.subtitle { font-size: 13px; color: var(--muted); font-weight: 400; }
+
+h2 { font-size: 16px; margin: 24px 0 12px; }
+
+/* ── Index cards ────────────────────────────────── */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  max-width: 800px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 18px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color .15s, background .15s;
+  position: relative;
+}
+
+.card:hover { border-color: var(--blue); background: rgba(79,142,247,.06); }
+
+.card-name  { font-weight: 600; }
+.card-label { font-size: 12px; color: var(--muted); }
+
+.card-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  position: absolute; top: 16px; right: 16px;
+}
+
+.card--green  .card-dot { background: var(--green); }
+.card--orange .card-dot { background: var(--orange); }
+.card--red    .card-dot { background: var(--red); }
+.card--grey   .card-dot { background: var(--muted); }
+
+/* ── Tables ─────────────────────────────────────── */
+
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th, td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+th a { color: var(--muted); text-decoration: none; }
+th a:hover { color: var(--text); }
+
+tbody tr:hover { background: rgba(255,255,255,.03); }
+
+td a { color: var(--blue); text-decoration: none; }
+td a:hover { text-decoration: underline; }
+
+.green { color: var(--green); }
+.red   { color: var(--red); }
+
+/* ── Badges ─────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.badge--buy    { background: rgba(61,220,132,.15); color: var(--green); }
+.badge--sell   { background: rgba(255,95,95,.15);  color: var(--red); }
+.badge--hold   { background: rgba(79,142,247,.15); color: var(--blue); }
+.badge--wait   { background: rgba(136,146,164,.15); color: var(--muted); }
+.badge--warn   { background: rgba(240,165,0,.15);  color: var(--orange); }
+.badge--source { background: rgba(79,142,247,.10); color: var(--muted); font-weight: 400; }
+
+/* ── Offline / empty states ─────────────────────── */
+
+.offline {
+  color: var(--muted);
+  padding: 24px 0;
+}
+
+.offline-box {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.offline-box code {
+  display: inline-block;
+  margin-top: 8px;
+  background: var(--surface);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── iframes ─────────────────────────────────────── */
+
+.fullscreen-iframe {
+  width: 100%;
+  height: calc(100vh - 48px);
+  border: none;
+  background: var(--bg);
+}
+
+.chart-section { margin-top: 32px; }
+
+.chart-iframe {
+  width: 100%;
+  height: 600px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+/* ── P&L row colors ──────────────────────────────── */
+.pnl-pos { background: rgba(61,220,132,.04); }
+.pnl-neg { background: rgba(255,95,95,.04); }
+
+/* ── Horizontal tab nav ──────────────────────────── */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-link {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s, border-color .15s;
+}
+
+.tab-link:hover { color: var(--text); }
+
+.tab-link--active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+/* ── Ticker link (replaces TV column) ────────────── */
+.ticker-link {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.ticker-link:hover { color: var(--blue); }
+
+/* ── Watchlist actions row ───────────────────────── */
+.wl-actions {
+  margin-bottom: 20px;
+}
+
+.wl-new-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.wl-name-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 220px;
+}
+
+.wl-name-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover { opacity: .85; }
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.btn-delete:hover { color: var(--red); }
+
+.inline-form { display: inline; }
+
+/* ── Watchlist TV import ─────────────────────────── */
+.wl-import { margin-top: 28px; }
+
+.wl-import details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.wl-import summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.wl-import summary:hover { color: var(--text); }
+
+.wl-import-hint {
+  margin: 10px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wl-import-hint code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text);
+}
+
+.wl-import textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: monospace;
+  font-size: 13px;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.wl-import textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+/* ── Watchlist tab with inline delete ────────────── */
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-delete-form { display: inline; }
+
+.tab-delete-btn {
+  background: none;
+  border: none;
+  color: transparent;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-bottom: -1px;
+  transition: color .15s;
+}
+
+.tab-item:hover .tab-delete-btn { color: var(--muted); }
+.tab-delete-btn:hover { color: var(--red) !important; }
+
+/* ── Watchlist header (tabs + toolbar row) ───────── */
+.wl-header { margin-bottom: 0; }
+
+.wl-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  margin-top: 14px;
+}
+
+/* File upload — styled as button */
+.wl-file-label {
+  cursor: pointer;
+  display: inline-block;
+}
+
+.wl-file-input { display: none; }
+
+/* ── Import notice (flash message) ──────────────── */
+.wl-notice {
+  padding: 10px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  border: 1px solid;
+}
+
+.wl-notice--ok {
+  background: rgba(61,220,132,.08);
+  border-color: rgba(61,220,132,.3);
+  color: var(--green);
+}
+
+.wl-notice--warn {
+  background: rgba(240,165,0,.08);
+  border-color: rgba(240,165,0,.3);
+  color: var(--orange);
+}
+
+/* ── Danger zone ─────────────────────────────────── */
+.wl-danger { margin-top: 16px; }
+
+.wl-danger details {
+  background: rgba(255,95,95,.04);
+  border: 1px solid rgba(255,95,95,.2);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.wl-danger-summary {
+  cursor: pointer;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: .7;
+  user-select: none;
+}
+
+.wl-danger-summary:hover { opacity: 1; }
+
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.btn-danger:hover { opacity: .85; }
+
+/* ── Watchlist Split-Pane Layout ─────────────────── */
+
+.watchlist-page .content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.wl-header {
+  padding: 10px 16px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.wl-header .tab-nav {
+  border-bottom: none;
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.wl-header .wl-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.wl-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Ticker-Panel (rechts) ──────────────────────── */
+
+.ticker-panel {
+  width: 260px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ticker-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .1s;
+  user-select: none;
+}
+
+.ticker-item:hover { background: rgba(255,255,255,.04); }
+
+.ticker-item--active {
+  border-left-color: var(--blue);
+  background: rgba(79,142,247,.08) !important;
+}
+
+.ticker-item--buy  { background: rgba(61,220,132,.05); }
+.ticker-item--sell { background: rgba(255,95,95,.05); }
+.ticker-item--hold,
+.ticker-item--wait { background: rgba(240,165,0,.04); }
+
+.ticker-item--active.ticker-item--buy  { background: rgba(61,220,132,.10) !important; }
+.ticker-item--active.ticker-item--sell { background: rgba(255,95,95,.10) !important; }
+
+.ticker-symbol {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ticker-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+
+.ticker-stat {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.ticker-stat--green  { color: var(--green); }
+.ticker-stat--orange { color: var(--orange); }
+.ticker-stat--red    { color: var(--red); }
+
+/* Admin-Sektion am Ende des Ticker-Panels */
+.ticker-panel-admin {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+
+.ticker-panel-admin summary {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ticker-panel-admin summary:hover { color: var(--text); }
+
+.ticker-panel-admin-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Chart-Panel (links) ────────────────────────── */
+
+.chart-panel {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+#chart-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--bg);
+  display: block;
+}
+
+.chart-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Leer-Zustand wenn keine Watchlist vorhanden */
+.wl-empty {
+  padding: 32px 24px;
+  color: var(--muted);
+}
+
+/* ── Admin / Pipeline Trigger ────────────────────── */
+.admin-notice {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  background: rgba(61,220,132,.08);
+  border: 1px solid rgba(61,220,132,.3);
+  color: var(--green);
+}
+
+.admin-notice a { color: var(--green); }
+
+.admin-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color .15s;
+  min-width: 180px;
+}
+
+.admin-btn:hover { border-color: var(--blue); }
+
+.admin-btn--full { border-color: var(--orange); }
+.admin-btn--full:hover { border-color: var(--orange); background: rgba(240,165,0,.06); }
+
+.admin-btn-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin-btn-hint {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+/* ── Portfolio Split-Pane Layout ─────────────────── */
+
+.portfolio-page .content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.portfolio-header {
+  padding: 10px 16px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.portfolio-header .tab-nav {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.portfolio-left-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.portfolio-left-panel .chart-panel {
+  min-height: 0;
+}
+
+/* Position info bar */
+.pos-info-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.pos-field {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.pos-label {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.pos-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pos-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.pos-pnl-pos { color: var(--green); }
+.pos-pnl-neg { color: var(--red); }

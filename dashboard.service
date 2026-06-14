@@ -1,0 +1,15 @@
+[Unit]
+Description=Finanz Dashboard
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=christoph
+WorkingDirectory=/home/christoph/Finanz/finanz-dashboard
+EnvironmentFile=/home/christoph/Finanz/.env
+ExecStart=/home/christoph/Finanz/finanz-dashboard/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8080 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
