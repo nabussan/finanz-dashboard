@@ -27,7 +27,7 @@ IS_BETTER_HIGHER: dict[str, bool] = {
     "Operating margin %": True,
     "EBITDA margin %": True,
     "Net margin %": True,
-    "Debt-Weighted Profitability": True,
+    "Slope Return on invested capital %": True,
     "Quick ratio": True,
     "Current ratio": True,
     "Inventory turnover": True,
@@ -49,7 +49,6 @@ IS_BETTER_HIGHER: dict[str, bool] = {
     "Net Debt / TTM Op. CF": False,
     "Slope Gross margin": True,
     "Slope Debt to equity": False,
-    "Slope Debt-Weighted Profitability": True,
 }
 
 _US_EXCHANGES = {"NYSE", "NASDAQ", "OTC", "CBOE", "AMEX"}
@@ -208,30 +207,12 @@ def _extract(data: dict, ticker: str) -> dict[str, float]:
     valid_d2e = [_convert_to_float(v) for v in d2e_vals]
     m["Slope Debt to equity"] = _calculate_slope(valid_d2e) if len([v for v in valid_d2e if not _is_nan(v)]) >= 3 else _nan()
 
-    # Debt-Weighted Profitability (DWP) + slope
-    roe_vals = [_convert_to_float(v) for v in prof.get("Return on equity %", {}).values()]
-    d2e_vals2 = [_convert_to_float(v) for v in sol.get("Debt to equity ratio", {}).values()]
-    valid_roe = [v for v in roe_vals if not _is_nan(v)]
-    valid_d2e2 = [v for v in d2e_vals2 if not _is_nan(v)]
-
-    periode = desc.get("Periode", "Vierteljahr")
-    period_count = 8 if periode == "Vierteljahr" else 4
-
-    if len(valid_roe) >= 3 and len(valid_d2e2) >= 3:
-        roe_last = valid_roe[-period_count:]
-        d2e_last = valid_d2e2[-period_count:]
-        dwp_vals = []
-        for roe, d2e in zip(roe_last, d2e_last):
-            try:
-                dwp_vals.append(roe / (1 + d2e))
-            except (ZeroDivisionError, TypeError):
-                dwp_vals.append(_nan())
-        valid_dwp = [v for v in dwp_vals if not _is_nan(v)]
-        m["Debt-Weighted Profitability"] = valid_dwp[-1] if valid_dwp else _nan()
-        m["Slope Debt-Weighted Profitability"] = _calculate_slope(valid_dwp) if len(valid_dwp) >= 3 else _nan()
-    else:
-        m["Debt-Weighted Profitability"] = _nan()
-        m["Slope Debt-Weighted Profitability"] = _nan()
+    # Slope ROIC (Trend der kapitalstrukturbereinigten Rendite)
+    roic_vals = [_convert_to_float(v) for v in prof.get("Return on invested capital %", {}).values()]
+    valid_roic_series = [v for v in roic_vals if not _is_nan(v)]
+    m["Slope Return on invested capital %"] = (
+        _calculate_slope(valid_roic_series) if len(valid_roic_series) >= 3 else _nan()
+    )
 
     # Per-share cashflow metrics
     rev_ttm = _get_ttm_sum(per.get("Revenue per share", {}))
@@ -361,8 +342,7 @@ def _compute_category_scores(records: list[dict], cfg: dict) -> None:
             s(r, "Gross margin %")               * pc["factor_gross_margin"] +
             s(r, "Operating margin %")           * pc["factor_operating_margin"] +
             s(r, "EBITDA margin %")              * pc["factor_ebitda_margin"] +
-            s(r, "Net margin %")                 * pc["factor_net_margin"] +
-            s(r, "Debt-Weighted Profitability")  * pc["factor_debt_weighted_profitability"]
+            s(r, "Net margin %")                 * pc["factor_net_margin"]
         ) / total_p
 
         r["score_liquidity"] = (
@@ -390,7 +370,7 @@ def _compute_category_scores(records: list[dict], cfg: dict) -> None:
         r["score_trends"] = (
             s(r, "Slope Gross margin")                    * tc["factor_slope_gross_margin"] +
             s(r, "Slope Debt to equity")                  * tc["factor_slope_debt_to_equity"] +
-            s(r, "Slope Debt-Weighted Profitability")     * tc["factor_slope_debt_weighted_profitability"] +
+            s(r, "Slope Return on invested capital %")    * tc["factor_slope_return_on_invested_capital"] +
             s(r, "Slope FCF")                             * tc["factor_slope_fcf"] +
             s(r, "Slope Total common shares outstanding") * tc["factor_slope_shares_outstanding"]
         ) / total_t
