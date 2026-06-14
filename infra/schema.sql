@@ -125,8 +125,14 @@ CREATE TABLE IF NOT EXISTS fundamentals (
     roe            NUMERIC,
     debt_equity    NUMERIC,
     revenue_growth NUMERIC,
-    ranking_score  NUMERIC,
-    ranking_pos    INT,
+    ranking_score        NUMERIC,
+    ranking_pos          INT,
+    score_trends         NUMERIC,
+    score_cashflow       NUMERIC,
+    score_profitability  NUMERIC,
+    score_valuation      NUMERIC,
+    score_liquidity      NUMERIC,
+    score_solvency       NUMERIC,
     PRIMARY KEY (ticker, updated, source)
 );
 CREATE INDEX IF NOT EXISTS fundamentals_updated_idx ON fundamentals(updated DESC);

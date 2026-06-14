@@ -1,50 +1,169 @@
 {% extends "layout.html" %}
 {% block title %}Micro Rankings{% endblock %}
+{% block body_class %}micro-page{% endblock %}
 {% block content %}
-<h1>Micro Rankings
-  {% if source == "json-fallback" %}
-    <span class="badge badge--warn">JSON-Fallback</span>
-  {% endif %}
-</h1>
 
-{% if not json_dir_ok and not tickers %}
-  <p class="offline">Micro-JSON-Verzeichnis nicht erreichbar und keine DB-Daten vorhanden.</p>
-{% elif not tickers %}
-  <p class="offline">Keine Fundamentaldaten. Bitte micro/src/130_*.py ausführen.</p>
-{% else %}
-<div class="table-wrap">
-<table>
-  <thead>
-    <tr>
-      <th>#</th>
-      <th>Ticker</th>
-      <th>Source</th>
-      <th>Score</th>
-      <th>P/E</th>
-      <th>EV/EBITDA</th>
-      <th>ROE%</th>
-      <th>D/E</th>
-      <th>Rev.Growth%</th>
-      <th>Chart</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for t in tickers %}
-    <tr>
-      <td>{{ t.ranking_pos or loop.index }}</td>
-      <td>{{ t.ticker }}</td>
-      <td><span class="badge badge--source">{{ t.source or "tv" }}</span></td>
-      <td>{{ "%.1f"|format(t.ranking_score) if t.ranking_score is not none else "—" }}</td>
-      <td>{{ "%.1f"|format(t.pe) if t.pe is not none else "—" }}</td>
-      <td>{{ "%.1f"|format(t.ev_ebitda) if t.ev_ebitda is not none else "—" }}</td>
-      <td>{{ "%.1f"|format(t.roe) if t.roe is not none else "—" }}</td>
-      <td>{{ "%.2f"|format(t.debt_equity) if t.debt_equity is not none else "—" }}</td>
-      <td>{{ "%.1f"|format(t.revenue_growth) if t.revenue_growth is not none else "—" }}</td>
-      <td><a href="https://www.tradingview.com/chart/?symbol={{ t.ticker }}" target="_blank">TV</a></td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+{# ── Header: Cluster-Tabs + Ranking-Button ────────────────────────────────── #}
+<div class="rsm-header micro-header">
+  <nav class="rsm-filter-nav">
+    <a href="/micro"
+       class="rsm-filter-btn{% if active_cluster_id is none %} rsm-filter-btn--active{% endif %}">
+      Alle
+    </a>
+    {% for cl in clusters %}
+    <a href="/micro?cluster_id={{ cl.id }}"
+       class="rsm-filter-btn{% if active_cluster_id == cl.id %} rsm-filter-btn--active{% endif %}">
+      {{ cl.name }}
+    </a>
+    {% endfor %}
+  </nav>
+
+  <form method="post"
+        action="/micro/rank{% if active_cluster_id %}?cluster_id={{ active_cluster_id }}{% endif %}"
+        style="display:inline;">
+    <button type="submit" class="rsm-filter-btn micro-rank-btn" id="rank-btn">
+      ⟳ Ranking
+    </button>
+  </form>
+
+  {% if scored_at %}
+  <span class="rsm-run-date">Stand: {{ scored_at }}</span>
+  {% endif %}
+
+  {% if source == "json-fallback" %}
+  <span class="badge badge--warn" style="font-size:11px;">JSON-Fallback</span>
+  {% endif %}
 </div>
-{% endif %}
+
+{# ── Split-Pane ───────────────────────────────────────────────────────────── #}
+<div class="rsm-split">
+
+  {# Chart-Panel (links) #}
+  <div class="chart-panel">
+    <iframe id="chart-frame" src="/portfolio-charts" title="Micro Chart"></iframe>
+  </div>
+
+  {# Tabellen-Panel (rechts) #}
+  <div class="rsm-signal-panel micro-panel">
+    {% if not json_dir_ok and not tickers %}
+      <div class="offline-box">
+        <p class="offline">Micro-JSON-Verzeichnis nicht erreichbar und keine DB-Daten vorhanden.</p>
+      </div>
+    {% elif not tickers %}
+      <div class="offline-box">
+        <p class="offline">Keine Fundamentaldaten. Bitte „Ranking" klicken oder scripts/import_json_to_db.py ausführen.</p>
+      </div>
+    {% else %}
+    <table class="rsm-table micro-table">
+      <thead>
+        <tr>
+          <th title="Cluster-Rang">#</th>
+          <th>Ticker</th>
+          <th title="Gesamt-Score (0–1)">Score</th>
+          <th title="Trend-Score (Slopes)">Trend</th>
+          <th title="Cashflow-Score">CF</th>
+          <th title="Profitability-Score">Profit</th>
+          <th title="Universe-Rang (aus DB)">Univ#</th>
+          <th>P/E</th>
+          <th>ROE%</th>
+          <th>D/E</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for t in tickers %}
+      {%- set anchor = "pnl-" + (t.ticker or '') | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
+      {%- set is_neg = t.get('negative', false) -%}
+      <tr class="signal-row{% if is_neg %} micro-negative{% endif %}"
+          data-anchor="{{ anchor }}"
+          onclick="switchToTicker(this)">
+        <td class="micro-rank">{{ t.cluster_rank or "—" }}</td>
+        <td class="ticker-cell">{{ t.ticker }}</td>
+        <td>
+          {% if t.ranking_score is not none and t.ranking_score == t.ranking_score %}
+          <div class="score-wrap">
+            <span>{{ "%.2f"|format(t.ranking_score) }}</span>
+            <div class="score-bar"><div class="score-fill" style="width:{{ (t.ranking_score * 100)|int }}%"></div></div>
+          </div>
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ "%.2f"|format(t.score_trends)       if t.score_trends is not none and t.score_trends == t.score_trends else "—" }}</td>
+        <td>{{ "%.2f"|format(t.score_cashflow)     if t.score_cashflow is not none and t.score_cashflow == t.score_cashflow else "—" }}</td>
+        <td>{{ "%.2f"|format(t.score_profitability) if t.score_profitability is not none and t.score_profitability == t.score_profitability else "—" }}</td>
+        <td class="micro-univ">{{ t.universe_rank or "—" }}</td>
+        <td>{{ "%.1f"|format(t.pe)           if t.pe is not none and t.pe == t.pe else "—" }}</td>
+        <td>{{ "%.1f"|format(t.roe)          if t.roe is not none and t.roe == t.roe else "—" }}</td>
+        <td>{{ "%.2f"|format(t.debt_equity)  if t.debt_equity is not none and t.debt_equity == t.debt_equity else "—" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const iframe = document.getElementById('chart-frame');
+  let chartLoaded = false;
+  let pendingAnchor = null;
+
+  function callInFrame(anchor) {
+    try {
+      const cw = iframe && iframe.contentWindow;
+      if (!cw) return;
+      if (typeof cw.activateTab === 'function') {
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+    }
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', function () {
+      chartLoaded = true;
+      const target = pendingAnchor;
+      pendingAnchor = null;
+      if (target) {
+        callInFrame(target);
+      } else {
+        const first = document.querySelector('.signal-row[data-anchor]');
+        if (first) callInFrame(first.dataset.anchor);
+      }
+    });
+  }
+
+  window.switchToTicker = function (row) {
+    document.querySelectorAll('.signal-row').forEach(function (r) {
+      r.classList.remove('signal-row--active');
+    });
+    row.classList.add('signal-row--active');
+    const anchor = row.dataset.anchor;
+    if (!anchor) return;
+    if (chartLoaded) callInFrame(anchor);
+    else pendingAnchor = anchor;
+  };
+
+  // Universe-Hintergrundstatus prüfen
+  const btn = document.getElementById('rank-btn');
+  function checkStatus() {
+    fetch('/micro/rank/status')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status === 'running') {
+          if (btn) btn.textContent = '⟳ läuft…';
+          setTimeout(checkStatus, 2000);
+        } else {
+          if (btn) btn.textContent = '⟳ Ranking';
+        }
+      })
+      .catch(function () {});
+  }
+  checkStatus();
+}());
+</script>
 {% endblock %}

@@ -844,3 +844,24 @@ td a:hover { text-decoration: underline; }
 .score-wrap { display: flex; flex-direction: column; gap: 3px; }
 .score-bar  { height: 2px; background: var(--border); border-radius: 1px; }
 .score-fill { height: 100%; background: var(--blue); border-radius: 1px; opacity: .55; }
+
+/* ── Micro / Fundamental Rankings ───────────────────────────────────────────── */
+
+.micro-page .content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.micro-header { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+
+.micro-rank-btn { border-color: var(--blue); color: var(--blue); }
+.micro-rank-btn:hover { background: rgba(79,142,247,.08); }
+
+.micro-panel { width: 560px; }
+
+.micro-table .micro-rank { color: var(--muted); font-size: 11px; width: 24px; }
+.micro-table .micro-univ { color: var(--muted); font-size: 11px; }
+
+.micro-negative td { opacity: .55; }
