@@ -1,10 +1,11 @@
 import json
 import math
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 import config
@@ -207,8 +208,52 @@ def _universe_score_task():
 
 @router.get("/micro/rank/status")
 async def micro_rank_status():
-    from fastapi.responses import JSONResponse
     return JSONResponse(_rank_status)
+
+
+_RSM_DB: Path | None = None
+
+
+def _get_rsm_db() -> Path | None:
+    global _RSM_DB
+    if _RSM_DB is not None:
+        return _RSM_DB if _RSM_DB.exists() else None
+    candidate = config.RSM_DATA_DIR / "rsm_data.db"
+    _RSM_DB = candidate
+    return candidate if candidate.exists() else None
+
+
+@router.get("/micro/chart-data/{symbol:path}")
+async def micro_chart_data(symbol: str, interval: str = "1week"):
+    """OHLCV-Daten aus rsm_data.db für symbol (EXCHANGE:TICKER).
+    interval: '1week' oder '1day'. 404 wenn keine Daten vorhanden → TV-Widget-Fallback im Client."""
+    db_path = _get_rsm_db()
+    if db_path is None:
+        raise HTTPException(404, "RSM-Datenbank nicht gefunden")
+
+    if interval not in ("1week", "1day"):
+        raise HTTPException(400, "interval muss '1week' oder '1day' sein")
+
+    try:
+        con = sqlite3.connect(db_path)
+        rows = con.execute(
+            "SELECT date, open, high, low, close FROM prices "
+            "WHERE ticker = ? AND interval = ? ORDER BY date",
+            (symbol, interval),
+        ).fetchall()
+        con.close()
+    except Exception as e:
+        raise HTTPException(500, f"DB-Fehler: {e}")
+
+    if not rows:
+        raise HTTPException(404, f"Keine Preisdaten für {symbol} ({interval})")
+
+    ohlc = [
+        {"time": r[0], "open": r[1], "high": r[2], "low": r[3], "close": r[4]}
+        for r in rows
+        if all(v is not None for v in r)
+    ]
+    return JSONResponse({"symbol": symbol, "interval": interval, "ohlc": ohlc})
 
 
 def _load_from_json_fallback() -> list[dict]:

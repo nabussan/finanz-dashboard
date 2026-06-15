@@ -64,6 +64,67 @@ async def test_micro(client):
     assert r.status_code == 200
 
 
+async def test_micro_iframe_structure(client):
+    """Micro-Seite muss iframe auf /portfolio-charts haben (W/D RSM-Charts)."""
+    r = await client.get("/micro")
+    assert r.status_code == 200
+    assert 'id="chart-frame"' in r.text
+    assert '/portfolio-charts' in r.text
+
+
+async def test_micro_chart_controls(client):
+    """Micro-Seite muss W / D / TV Chart-Umschalter haben."""
+    r = await client.get("/micro")
+    assert r.status_code == 200
+    assert 'chart-mode-btn' in r.text
+    for label in ('W', 'D', 'TV'):
+        assert label in r.text
+
+
+async def test_micro_table_columns(client):
+    """Micro-Tabelle muss alle Kernspalten enthalten."""
+    r = await client.get("/micro")
+    assert r.status_code == 200
+    for col in ('ROIC', 'EV/EBIT', 'ROE%', 'D/E', 'Univ#', 'Score'):
+        assert col in r.text, f"Spalte {col!r} fehlt in /micro"
+
+
+async def test_micro_anchor_format(client):
+    """Jede Tabellenzeile muss data-anchor mit pnl-Prefix haben (iframe-Navigation)."""
+    r = await client.get("/micro")
+    assert r.status_code == 200
+    assert 'data-anchor="pnl-' in r.text
+
+
+async def test_micro_chart_data_invalid_interval(client):
+    """chart-data-Endpoint soll 400 bei ungültigem Interval zurückgeben."""
+    r = await client.get("/micro/chart-data/NASDAQ:AAPL?interval=invalid")
+    assert r.status_code == 400
+
+
+async def test_micro_chart_data_unknown_ticker(client):
+    """chart-data-Endpoint soll 404 für unbekannten Ticker zurückgeben."""
+    r = await client.get("/micro/chart-data/UNKNOWN:XYZABC123?interval=1week")
+    assert r.status_code == 404
+
+
+async def test_micro_chart_data_ibkr_weekly(client):
+    """chart-data liefert OHLCV für IBKR weekly wenn rsm_data.db vorhanden."""
+    import config
+    db_path = config.RSM_DATA_DIR / "rsm_data.db"
+    if not db_path.exists():
+        pytest.skip("rsm_data.db nicht vorhanden")
+    r = await client.get("/micro/chart-data/NASDAQ:IBKR?interval=1week")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["symbol"] == "NASDAQ:IBKR"
+    assert data["interval"] == "1week"
+    assert len(data["ohlc"]) > 100
+    bar = data["ohlc"][0]
+    for field in ("time", "open", "high", "low", "close"):
+        assert field in bar, f"OHLCV-Feld {field!r} fehlt"
+
+
 # ── Charts ───────────────────────────────────────────────────────────────────
 
 

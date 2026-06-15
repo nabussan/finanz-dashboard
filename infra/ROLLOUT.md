@@ -141,6 +141,7 @@ pct exec 521 -- su - finanz -c "cd /opt/finanz-dashboard && .venv/bin/pytest tes
 - [ ] `/portfolios?broker=ibkr` — Portfolio-Seite (leer bis Go-Live OK)
 - [ ] `/portfolio-charts` — Chart-iframe rendert
 - [ ] `/watchlists` — Watchlists vorhanden
+- [ ] `/micro` — Micro-Ranking mit RSM-Chart-Iframe (W/D/TV-Toggle, Tabelle mit allen Spalten)
 
 ---
 

@@ -38,9 +38,17 @@
 {# ── Split-Pane ───────────────────────────────────────────────────────────── #}
 <div class="rsm-split">
 
-  {# Chart-Panel (links) — TradingView Widget #}
+  {# Chart-Panel (links) — W / D / TV #}
   <div class="chart-panel" id="tv-chart-panel">
-    <div id="tv-chart" style="height:100%;width:100%;"></div>
+    <div class="chart-controls">
+      <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
+      <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
+      <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
+    </div>
+    <div class="chart-body">
+      <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
+      <div id="tv-chart"></div>
+    </div>
   </div>
 
   {# Tabellen-Panel (rechts) #}
@@ -57,17 +65,16 @@
     <table class="rsm-table micro-table" id="micro-table">
       <thead>
         <tr>
-          <th data-sort="rank"     title="Cluster-Rang">#<span class="sort-ind"></span></th>
-          <th                      title="Ticker">Ticker</th>
+          <th data-sort="ticker"   title="Ticker">Ticker<span class="sort-ind"></span></th>
           <th data-sort="score"    title="Gesamt-Score (0–1)">Score<span class="sort-ind"></span></th>
           <th data-sort="trends"   title="Trend-Score">Trend<span class="sort-ind"></span></th>
           <th data-sort="cf"       title="Cashflow-Score">CF<span class="sort-ind"></span></th>
           <th data-sort="profit"   title="Profitability-Score">Profit<span class="sort-ind"></span></th>
-          <th data-sort="univ"     title="Universe-Rang (DB)">Univ#<span class="sort-ind"></span></th>
+          <th data-sort="roic"     title="Return on Invested Capital %">ROIC<span class="sort-ind"></span></th>
           <th data-sort="evebitda" title="EV/EBITDA">EV/EBIT<span class="sort-ind"></span></th>
           <th data-sort="roe"      title="Return on Equity %">ROE%<span class="sort-ind"></span></th>
           <th data-sort="de"       title="Debt/Equity (Verschuldungsgrad)">D/E<span class="sort-ind"></span></th>
-          <th data-sort="roic"     title="Return on Invested Capital %">ROIC<span class="sort-ind"></span></th>
+          <th data-sort="univ"     title="Universe-Rang (DB)">Univ#<span class="sort-ind"></span></th>
         </tr>
       </thead>
       <tbody>
@@ -75,8 +82,11 @@
       {%- set exch = t.exchange if t.exchange else "" -%}
       {%- set tv_sym = (exch + ":" + t.ticker) if exch else t.ticker -%}
       {%- set is_neg = t.get('negative', false) -%}
+      {%- set chart_anchor = "pnl-" + tv_sym | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
       <tr class="signal-row{% if is_neg %} micro-negative{% endif %}"
           data-tv-symbol="{{ tv_sym }}"
+          data-anchor="{{ chart_anchor }}"
+          data-ticker="{{ t.ticker }}"
           data-rank="{{ t.cluster_rank or 9999 }}"
           data-score="{{ t.ranking_score if t.ranking_score is not none else '' }}"
           data-trends="{{ t.score_trends if t.score_trends is not none and t.score_trends == t.score_trends else '' }}"
@@ -88,7 +98,6 @@
           data-de="{{ t.debt_equity if t.debt_equity is not none and t.debt_equity == t.debt_equity else '' }}"
           data-roic="{{ t.roic if t.roic is not none and t.roic == t.roic else '' }}"
           onclick="rowClick(this)">
-        <td class="micro-rank">{{ t.cluster_rank or "—" }}</td>
         <td class="ticker-cell">{{ t.ticker }}</td>
         <td>
           {% if t.ranking_score is not none and t.ranking_score == t.ranking_score %}
@@ -101,11 +110,11 @@
         <td>{{ "%.2f"|format(t.score_trends)        if t.score_trends is not none and t.score_trends == t.score_trends else "—" }}</td>
         <td>{{ "%.2f"|format(t.score_cashflow)      if t.score_cashflow is not none and t.score_cashflow == t.score_cashflow else "—" }}</td>
         <td>{{ "%.2f"|format(t.score_profitability) if t.score_profitability is not none and t.score_profitability == t.score_profitability else "—" }}</td>
-        <td class="micro-univ">{{ t.universe_rank or "—" }}</td>
+        <td>{{ "%.1f"|format(t.roic)         if t.roic is not none and t.roic == t.roic else "—" }}</td>
         <td>{{ "%.1f"|format(t.ev_ebitda)    if t.ev_ebitda is not none and t.ev_ebitda == t.ev_ebitda else "—" }}</td>
         <td>{{ "%.1f"|format(t.roe)          if t.roe is not none and t.roe == t.roe else "—" }}</td>
         <td>{{ "%.2f"|format(t.debt_equity)  if t.debt_equity is not none and t.debt_equity == t.debt_equity else "—" }}</td>
-        <td>{{ "%.1f"|format(t.roic)         if t.roic is not none and t.roic == t.roic else "—" }}</td>
+        <td class="micro-univ">{{ t.universe_rank or "—" }}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -118,35 +127,105 @@
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script>
 (function () {
-  var _tvWidget = null;
+  var _mode          = 'W';
   var _currentSymbol = null;
+  var _tvWidget      = null;
 
-  function loadTVChart(symbol) {
-    if (!symbol || symbol === _currentSymbol) return;
-    _currentSymbol = symbol;
-    var container = document.getElementById('tv-chart');
-    if (!container) return;
-    container.innerHTML = '';
-    _tvWidget = new TradingView.widget({
-      container_id: 'tv-chart',
-      symbol: symbol,
-      interval: 'W',
-      timezone: 'Europe/Berlin',
-      theme: 'dark',
-      style: '1',
-      locale: 'de_DE',
-      width: '100%',
-      height: '100%',
-      hide_side_toolbar: false,
-      allow_symbol_change: true,
-      save_image: false,
-    });
+  var iframe = document.getElementById('chart-frame');
+  var tvDiv  = document.getElementById('tv-chart');
+
+  var FRAME_URL = {
+    'W': '/portfolio-charts',
+    'D': '/portfolio-charts-daily',
+  };
+
+  var _frameBaseUrl  = '/portfolio-charts';
+  var _frameReady    = false;
+  var _pendingAnchor = null;
+
+  function _anchor(tvSymbol) {
+    return 'pnl-' + tvSymbol.replace(/[^A-Za-z0-9]/g, '_');
   }
+
+  function _callInFrame(anchor) {
+    try {
+      var cw = iframe.contentWindow;
+      if (typeof cw.activateTab === 'function') {
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      iframe.src = _frameBaseUrl + '#' + anchor;
+    }
+  }
+
+  iframe.addEventListener('load', function () {
+    _frameReady = true;
+    if (_pendingAnchor) {
+      var a = _pendingAnchor; _pendingAnchor = null;
+      _callInFrame(a);
+    }
+  });
+
+  function loadChart(tvSymbol, mode) {
+    mode = mode || _mode;
+    _currentSymbol = tvSymbol;
+
+    if (mode === 'TV') {
+      iframe.style.display = 'none';
+      tvDiv.style.display  = 'block';
+      tvDiv.innerHTML = '';
+      _tvWidget = new TradingView.widget({
+        container_id: 'tv-chart',
+        symbol:   tvSymbol,
+        interval: 'W',
+        timezone: 'Europe/Berlin',
+        theme:    'dark',
+        style:    '1',
+        locale:   'de_DE',
+        width:    '100%',
+        height:   '100%',
+        hide_side_toolbar: false,
+        allow_symbol_change: true,
+        save_image: false,
+      });
+      return;
+    }
+
+    // W / D → iframe
+    tvDiv.style.display   = 'none';
+    iframe.style.display  = 'block';
+
+    var url    = FRAME_URL[mode] || FRAME_URL['W'];
+    var anchor = _anchor(tvSymbol);
+
+    if (url === _frameBaseUrl && _frameReady) {
+      _callInFrame(anchor);
+    } else {
+      _frameBaseUrl  = url;
+      _frameReady    = false;
+      _pendingAnchor = anchor;
+      iframe.src     = url + '#' + anchor;
+    }
+  }
+
+  window.setChartMode = function (mode, btn) {
+    _mode = mode;
+    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
+      b.classList.remove('chart-mode-btn--active');
+    });
+    if (btn) btn.classList.add('chart-mode-btn--active');
+    if (_currentSymbol) loadChart(_currentSymbol, mode);
+  };
 
   // Erster Ticker automatisch laden
   var firstRow = document.querySelector('.signal-row[data-tv-symbol]');
   if (firstRow) {
-    loadTVChart(firstRow.dataset.tvSymbol);
+    _currentSymbol = firstRow.dataset.tvSymbol;
+    _frameBaseUrl  = FRAME_URL['W'];
+    _pendingAnchor = _anchor(_currentSymbol);
     firstRow.classList.add('signal-row--active');
   }
 
@@ -155,12 +234,12 @@
       r.classList.remove('signal-row--active');
     });
     row.classList.add('signal-row--active');
-    loadTVChart(row.dataset.tvSymbol);
+    loadChart(row.dataset.tvSymbol);
   };
 
   // ── Spaltensortierung ─────────────────────────────────────────────────────
-  var _sortKey = 'rank';
-  var _sortAsc = true;
+  var _sortKey = 'score';
+  var _sortAsc = false;
 
   document.querySelectorAll('#micro-table th[data-sort]').forEach(function (th) {
     th.style.cursor = 'pointer';
@@ -170,9 +249,8 @@
         _sortAsc = !_sortAsc;
       } else {
         _sortKey = key;
-        _sortAsc = true;
+        _sortAsc = (key === 'ticker');
       }
-      // Indikatoren
       document.querySelectorAll('#micro-table th .sort-ind').forEach(function (s) {
         s.textContent = '';
       });
@@ -181,11 +259,18 @@
       var tbody = document.querySelector('#micro-table tbody');
       var rows = Array.from(tbody.querySelectorAll('tr'));
       rows.sort(function (a, b) {
-        var av = a.dataset[key];
-        var bv = b.dataset[key];
+        var av = a.dataset[key] || '';
+        var bv = b.dataset[key] || '';
+
+        if (key === 'ticker') {
+          if (!av && !bv) return 0;
+          if (!av) return 1;
+          if (!bv) return -1;
+          return _sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+        }
+
         var an = av === '' ? null : parseFloat(av);
         var bn = bv === '' ? null : parseFloat(bv);
-        // Leere Werte immer ans Ende
         if (an === null && bn === null) return 0;
         if (an === null) return 1;
         if (bn === null) return -1;
