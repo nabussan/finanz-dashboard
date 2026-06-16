@@ -60,17 +60,29 @@ def _parse_tv_import(content: str) -> list[str]:
     return list(dict.fromkeys(symbols))  # deduplicate, preserve order
 
 
-async def _count_missing_prices(pool, wl_id: int) -> int:
-    """Count watchlist tickers that have no signals data yet."""
-    return await pool.fetchval(
+async def _tickers_missing_prices(pool, wl_id: int) -> list[str]:
+    """Watchlist-Ticker ohne Weekly- oder Daily-Kursdaten in rsm_prices."""
+    rows = await pool.fetch(
         """
-        SELECT COUNT(*) FROM watchlist_items wi
+        SELECT wi.tv_symbol FROM watchlist_items wi
         WHERE wi.watchlist_id = $1
-        AND NOT EXISTS (
-            SELECT 1 FROM signals WHERE ticker = wi.tv_symbol LIMIT 1
+        AND (
+            NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = wi.tv_symbol AND interval = '1week')
+            OR NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = wi.tv_symbol AND interval = '1day')
         )
         """,
         wl_id,
+    )
+    return [r["tv_symbol"] for r in rows]
+
+
+def _trigger_ondemand_update() -> None:
+    """Feuert den Sofort-Update-Lauf an (fire-and-forget, eigener Lock+Client-IDs)."""
+    import subprocess
+    subprocess.Popen(
+        ["/opt/rsm-live/infra/ondemand_update.sh"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
 
 
@@ -115,8 +127,10 @@ async def upload_watchlist(file: UploadFile = File(...)):
             [(wl_id, sym) for sym in symbols],
         )
 
-    missing = await _count_missing_prices(pool, wl_id)
-    return RedirectResponse(f"/watchlists/{wl_id}?imported={len(symbols)}&missing={missing}", status_code=303)
+    missing = await _tickers_missing_prices(pool, wl_id)
+    if missing:
+        _trigger_ondemand_update()
+    return RedirectResponse(f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303)
 
 
 @router.get("/watchlists/{wl_id}", response_class=HTMLResponse)
@@ -186,9 +200,11 @@ async def import_watchlist(wl_id: int, content: str = Form(...)):
             "INSERT INTO watchlist_items (watchlist_id, tv_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             [(wl_id, sym) for sym in symbols],
         )
-    missing = await _count_missing_prices(pool, wl_id)
+    missing = await _tickers_missing_prices(pool, wl_id)
+    if missing:
+        _trigger_ondemand_update()
     return RedirectResponse(
-        f"/watchlists/{wl_id}?imported={len(symbols)}&missing={missing}", status_code=303
+        f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303
     )
 
 

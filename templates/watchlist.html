@@ -39,11 +39,14 @@
 <div class="wl-notice{% if missing %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
   {{ imported }} Symbol(e) importiert.
   {% if missing %}
-    <strong>{{ missing }} ohne Kursdaten</strong> — noch kein eod_update.py-Lauf.
+    <strong>{{ missing }} ohne Kursdaten</strong> — werden automatisch geladen (~1 Min), Seite lädt gleich neu …
   {% else %}
     Alle Ticker haben Kursdaten.
   {% endif %}
 </div>
+{% if missing %}
+<script>setTimeout(() => { window.location.href = window.location.pathname; }, 45000);</script>
+{% endif %}
 {% endif %}
 
 {% if active_wl is none %}
