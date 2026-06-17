@@ -20,7 +20,9 @@ _rank_status: dict = {"status": "idle", "last_run": None}
 
 
 async def _load_clusters(pool) -> list[dict]:
-    rows = await pool.fetch("SELECT id, name FROM watchlists ORDER BY name")
+    rows = await pool.fetch(
+        "SELECT id, name FROM clusters WHERE kind = 'watchlist' ORDER BY name"
+    )
     return [dict(r) for r in rows]
 
 
@@ -51,10 +53,10 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
                    f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.roic, f.revenue_growth,
                    f.ranking_score, f.ranking_pos{sub_cols_f}
             FROM fundamentals f
-            JOIN watchlist_items wi
-              ON upper(split_part(wi.tv_symbol, ':', 2)) = upper(f.ticker)
-              OR upper(wi.tv_symbol) = upper(f.ticker)
-            WHERE wi.watchlist_id = $1
+            JOIN cluster_items ci
+              ON upper(split_part(ci.tv_symbol, ':', 2)) = upper(f.ticker)
+              OR upper(ci.tv_symbol) = upper(f.ticker)
+            WHERE ci.cluster_id = $1
               AND f.updated = (SELECT MAX(updated) FROM fundamentals)
             ORDER BY f.ranking_score DESC NULLS LAST
             """,
@@ -159,12 +161,12 @@ async def micro_rank(
     # Ticker-Liste für dieses Cluster holen
     if cluster_id is not None:
         rows = await pool.fetch(
-            "SELECT tv_symbol FROM watchlist_items WHERE watchlist_id = $1",
+            "SELECT tv_symbol FROM cluster_items WHERE cluster_id = $1",
             cluster_id,
         )
         tv_symbols = [r["tv_symbol"] for r in rows]
         cluster_name_rows = await pool.fetch(
-            "SELECT name FROM watchlists WHERE id = $1", cluster_id
+            "SELECT name FROM clusters WHERE id = $1", cluster_id
         )
         cluster_name = cluster_name_rows[0]["name"] if cluster_name_rows else str(cluster_id)
     else:

@@ -7,11 +7,16 @@ from fastapi.templating import Jinja2Templates
 
 import config
 import db
+from routers._cluster_shared import (
+    parse_tv_import, upsert_cluster, insert_items,
+    tickers_missing_prices, trigger_ondemand_update,
+    delete_item, delete_cluster,
+)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
-_SYMBOL_RE = re.compile(r'^[A-Z0-9]+:[A-Z0-9.]+$')
+_KIND = "watchlist"
 
 
 def _score_class(v):
@@ -48,59 +53,12 @@ def _anchor(tv_symbol: str) -> str:
     return "pnl-" + re.sub(r'[^a-zA-Z0-9]', '_', tv_symbol)
 
 
-def _parse_tv_import(content: str) -> list[str]:
-    """Parse comma- or newline-separated TV symbols (EXCHANGE:TICKER)."""
-    symbols = []
-    for part in re.split(r'[,\n\r]+', content):
-        part = part.strip()
-        if not part or part.startswith('#'):
-            continue
-        if ':' in part and _SYMBOL_RE.match(part):
-            symbols.append(part)
-    return list(dict.fromkeys(symbols))  # deduplicate, preserve order
-
-
-async def _tickers_missing_prices(pool, wl_id: int) -> list[str]:
-    """Watchlist-Ticker ohne Weekly- oder Daily-Kursdaten in rsm_prices."""
-    rows = await pool.fetch(
-        """
-        SELECT wi.tv_symbol FROM watchlist_items wi
-        WHERE wi.watchlist_id = $1
-        AND (
-            NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = wi.tv_symbol AND interval = '1week')
-            OR NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = wi.tv_symbol AND interval = '1day')
-        )
-        """,
-        wl_id,
-    )
-    return [r["tv_symbol"] for r in rows]
-
-
-def _trigger_ondemand_update() -> None:
-    """Feuert den Sofort-Update-Lauf an (fire-and-forget, eigener Lock+Client-IDs)."""
-    import subprocess
-    subprocess.Popen(
-        ["/opt/rsm-live/infra/ondemand_update.sh"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-
-
-async def _upsert_watchlist(pool, name: str) -> int:
-    """Create watchlist if not exists, return id."""
-    row = await pool.fetchrow(
-        "INSERT INTO watchlists (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id",
-        name,
-    )
-    return row["id"] if row else await pool.fetchval(
-        "SELECT id FROM watchlists WHERE name = $1", name
-    )
-
-
 @router.get("/watchlists", response_class=HTMLResponse)
 async def watchlists_default(request: Request):
     pool = await db.get_pool()
-    first = await pool.fetchrow("SELECT id FROM watchlists ORDER BY id LIMIT 1")
+    first = await pool.fetchrow(
+        "SELECT id FROM clusters WHERE kind = $1 ORDER BY id LIMIT 1", _KIND
+    )
     if first:
         return RedirectResponse(f"/watchlists/{first['id']}", status_code=302)
     return templates.TemplateResponse(
@@ -116,20 +74,15 @@ async def upload_watchlist(file: UploadFile = File(...)):
     """Upload a .txt file — filename becomes watchlist name, content is comma/newline-separated symbols."""
     wl_name = Path(file.filename).stem
     content = (await file.read()).decode("utf-8", errors="ignore")
-    symbols = _parse_tv_import(content)
+    symbols = parse_tv_import(content)
 
     pool = await db.get_pool()
-    wl_id = await _upsert_watchlist(pool, wl_name)
+    wl_id = await upsert_cluster(pool, wl_name, _KIND)
+    await insert_items(pool, wl_id, symbols)
 
-    if symbols:
-        await pool.executemany(
-            "INSERT INTO watchlist_items (watchlist_id, tv_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-            [(wl_id, sym) for sym in symbols],
-        )
-
-    missing = await _tickers_missing_prices(pool, wl_id)
+    missing = await tickers_missing_prices(pool, wl_id)
     if missing:
-        _trigger_ondemand_update()
+        trigger_ondemand_update()
     return RedirectResponse(f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303)
 
 
@@ -139,7 +92,7 @@ async def watchlist_page(request: Request, wl_id: int,
     pool = await db.get_pool()
 
     all_wl = [dict(r) for r in await pool.fetch(
-        "SELECT id, name FROM watchlists ORDER BY id"
+        "SELECT id, name FROM clusters WHERE kind = $1 ORDER BY id", _KIND
     )]
     active_wl = next((w for w in all_wl if w["id"] == wl_id), None)
     if active_wl is None:
@@ -148,19 +101,19 @@ async def watchlist_page(request: Request, wl_id: int,
     items = await pool.fetch(
         """
         SELECT
-            wi.tv_symbol,
-            wi.ticker,
-            wi.added,
+            ci.tv_symbol,
+            ci.ticker,
+            ci.added,
             s.score, s.z_score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
-        FROM watchlist_items wi
+        FROM cluster_items ci
         LEFT JOIN LATERAL (
             SELECT score, z_score, iv_rank, vrp, ann_return, signal, klasse
             FROM signals
-            WHERE ticker = wi.tv_symbol
+            WHERE ticker = ci.tv_symbol
             ORDER BY run_date DESC LIMIT 1
         ) s ON TRUE
-        WHERE wi.watchlist_id = $1
-        ORDER BY s.score DESC NULLS LAST, wi.tv_symbol
+        WHERE ci.cluster_id = $1
+        ORDER BY s.score DESC NULLS LAST, ci.tv_symbol
         """,
         wl_id,
     )
@@ -187,22 +140,18 @@ async def watchlist_page(request: Request, wl_id: int,
 @router.post("/watchlists")
 async def create_watchlist(name: str = Form(...)):
     pool = await db.get_pool()
-    wl_id = await _upsert_watchlist(pool, name.strip())
+    wl_id = await upsert_cluster(pool, name.strip(), _KIND)
     return RedirectResponse(f"/watchlists/{wl_id}", status_code=303)
 
 
 @router.post("/watchlists/{wl_id}/import")
 async def import_watchlist(wl_id: int, content: str = Form(...)):
-    symbols = _parse_tv_import(content)
+    symbols = parse_tv_import(content)
     pool = await db.get_pool()
-    if symbols:
-        await pool.executemany(
-            "INSERT INTO watchlist_items (watchlist_id, tv_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-            [(wl_id, sym) for sym in symbols],
-        )
-    missing = await _tickers_missing_prices(pool, wl_id)
+    await insert_items(pool, wl_id, symbols)
+    missing = await tickers_missing_prices(pool, wl_id)
     if missing:
-        _trigger_ondemand_update()
+        trigger_ondemand_update()
     return RedirectResponse(
         f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303
     )
@@ -211,15 +160,12 @@ async def import_watchlist(wl_id: int, content: str = Form(...)):
 @router.post("/watchlists/{wl_id}/delete")
 async def delete_watchlist(wl_id: int):
     pool = await db.get_pool()
-    await pool.execute("DELETE FROM watchlists WHERE id = $1", wl_id)
+    await delete_cluster(pool, wl_id)
     return RedirectResponse("/watchlists", status_code=303)
 
 
 @router.post("/watchlists/{wl_id}/delete-item")
 async def delete_watchlist_item(wl_id: int, tv_symbol: str = Form(...)):
     pool = await db.get_pool()
-    await pool.execute(
-        "DELETE FROM watchlist_items WHERE watchlist_id = $1 AND tv_symbol = $2",
-        wl_id, tv_symbol,
-    )
+    await delete_item(pool, wl_id, tv_symbol)
     return RedirectResponse(f"/watchlists/{wl_id}", status_code=303)

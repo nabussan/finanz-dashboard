@@ -33,8 +33,10 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 20px 0;
+  padding: 20px 0 0;
   flex-shrink: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-title {
@@ -59,6 +61,36 @@ body {
 
 .sidebar a:hover  { color: var(--text); }
 .sidebar a.active { color: var(--text); border-left-color: var(--blue); background: rgba(79,142,247,.08); }
+
+/* ── Datenstand (Sidebar-Footer) ────────────────── */
+
+.sidebar-datastand {
+  margin-top: auto;
+  padding: 10px 20px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.datastand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.datastand-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.datastand-ts {
+  font-size: 11px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Main content ───────────────────────────────── */
 
@@ -846,6 +878,43 @@ td a:hover { text-decoration: underline; }
 .score-wrap { display: flex; flex-direction: column; gap: 3px; }
 .score-bar  { height: 2px; background: var(--border); border-radius: 1px; }
 .score-fill { height: 100%; background: var(--blue); border-radius: 1px; opacity: .55; }
+
+/* ── Portfolio-Listen Split-Pane Layout ──────────────────────────────────────── */
+
+.portfolio-lists-page .content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pl-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.pl-price {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pl-change {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pl-change--pos  { color: var(--green); }
+.pl-change--neg  { color: var(--red); }
+.pl-change--flat { color: var(--muted); }
+
+.pl-date {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
 
 /* ── Micro / Fundamental Rankings ───────────────────────────────────────────── */
 

@@ -297,13 +297,17 @@ async def test_db_watchlist_join(client):
     import db
     pool = await db.get_pool()
     # Prüfe ob Join auf tv_symbol Treffer liefert (falls Watchlist befüllt)
-    count_wl = await pool.fetchval("SELECT COUNT(*) FROM watchlist_items")
+    count_wl = await pool.fetchval(
+        "SELECT COUNT(*) FROM cluster_items ci JOIN clusters c ON c.id = ci.cluster_id WHERE c.kind = 'watchlist'"
+    )
     if count_wl == 0:
         pytest.skip("Keine Watchlist-Einträge zum Testen")
     hits = await pool.fetchval("""
-        SELECT COUNT(*) FROM watchlist_items wi
-        WHERE EXISTS (
-            SELECT 1 FROM signals WHERE ticker = wi.tv_symbol
+        SELECT COUNT(*) FROM cluster_items ci
+        JOIN clusters c ON c.id = ci.cluster_id
+        WHERE c.kind = 'watchlist'
+        AND EXISTS (
+            SELECT 1 FROM signals WHERE ticker = ci.tv_symbol
         )
     """)
     # Mindestens ein Treffer erwartet (wenn Signale und Watchlist befüllt)

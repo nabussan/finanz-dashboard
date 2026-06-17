@@ -1,0 +1,266 @@
+{% extends "layout.html" %}
+{% block body_class %}portfolio-lists-page{% endblock %}
+{% block title %}Portfolio-Listen{% endblock %}
+{% block content %}
+
+{# ── Header: Listen-Tabs + Toolbar ─────────────────────────────── #}
+<div class="wl-header">
+  <nav class="tab-nav">
+    {% for pl in all_lists %}
+    <span class="tab-item">
+      <a href="/portfolio-listen/{{ pl.id }}"
+         class="tab-link{% if active_list and active_list.id == pl.id %} tab-link--active{% endif %}">
+        {{ pl.name }}
+      </a>
+      <form method="post" action="/portfolio-listen/{{ pl.id }}/delete" class="tab-delete-form"
+            onsubmit="return confirm('Liste »{{ pl.name }}« löschen?')">
+        <button type="submit" class="tab-delete-btn" title="Liste löschen">×</button>
+      </form>
+    </span>
+    {% endfor %}
+  </nav>
+
+  <div class="wl-toolbar">
+    <form method="post" action="/portfolio-listen/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title="TradingView .txt hochladen — Dateiname = Listen-Name">
+        ⊕ Datei
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+      </label>
+    </form>
+    <form method="post" action="/portfolio-listen" class="wl-new-form">
+      <input type="text" name="name" placeholder="Neue Liste…" required class="wl-name-input" style="width:140px;">
+      <button type="submit" class="btn-secondary">+ Anlegen</button>
+    </form>
+  </div>
+</div>
+
+{# ── Import-Notice (Flash) ─────────────────────────────────────── #}
+{% if imported %}
+<div class="wl-notice{% if missing %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
+  {{ imported }} Symbol(e) importiert.
+  {% if missing %}
+    <strong>{{ missing }} ohne Kursdaten</strong> — werden automatisch geladen (~1 Min), Seite lädt gleich neu …
+  {% else %}
+    Alle Ticker haben Kursdaten.
+  {% endif %}
+</div>
+{% if missing %}
+<script>setTimeout(() => { window.location.href = window.location.pathname; }, 45000);</script>
+{% endif %}
+{% endif %}
+
+{% if active_list is none %}
+  <div class="wl-empty">Noch keine Portfolio-Listen — Datei hochladen oder oben anlegen.</div>
+
+{% else %}
+{# ── Split-Pane ──────────────────────────────────────────────────── #}
+<div class="wl-split">
+
+  {# ── Chart-Panel (links) — W / D / TV ──────────────────────────── #}
+  <div class="chart-panel">
+    <div class="chart-controls">
+      <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
+      <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
+      <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
+    </div>
+    <div class="chart-body">
+      <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
+      <div id="tv-chart"></div>
+    </div>
+  </div>
+
+  {# ── Ticker-Panel (rechts) ──────────────────────────────────────── #}
+  <div class="ticker-panel">
+
+    {% if not items %}
+      <div style="padding: 16px 12px; color: var(--muted); font-size: 13px;">
+        Leere Liste
+      </div>
+    {% endif %}
+
+    {% for p in items %}
+    {%- set anchor = "pnl-" + p.tv_symbol | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
+    <div class="ticker-item{% if loop.first %} ticker-item--active{% endif %}"
+         data-anchor="{{ anchor }}"
+         data-tv-symbol="{{ p.tv_symbol }}"
+         onclick="rowClick(this)">
+      <div class="ticker-symbol">{{ p.tv_symbol }}</div>
+      <div class="pl-price-row">
+        {% if p.current_price is not none %}
+        <span class="pl-price">{{ "%.2f" | format(p.current_price) }}</span>
+        {% if p.change_pct is not none %}
+        <span class="pl-change {% if p.change_pct > 0 %}pl-change--pos{% elif p.change_pct < 0 %}pl-change--neg{% else %}pl-change--flat{% endif %}">
+          {{ "%+.2f%%" | format(p.change_pct) }}
+        </span>
+        {% endif %}
+        {% else %}
+        <span class="pl-price" style="color:var(--muted)">—</span>
+        {% endif %}
+      </div>
+      {% if p.last_update %}
+      <div class="pl-date">{{ p.last_update.strftime('%Y-%m-%d') }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {# ── Verwaltungs-Sektion ─────────────────────────────────────── #}
+    <details class="ticker-panel-admin">
+      <summary>⚙ Verwalten</summary>
+      <div class="ticker-panel-admin-body">
+
+        {% if items %}
+        <div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">Ticker entfernen:</div>
+          {% for p in items %}
+          <form method="post" action="/portfolio-listen/{{ active_list.id }}/delete-item"
+                class="inline-form" style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">
+            <input type="hidden" name="tv_symbol" value="{{ p.tv_symbol }}">
+            <span style="font-size:11px; flex:1;">{{ p.tv_symbol }}</span>
+            <button type="submit" class="btn-delete" title="Entfernen">×</button>
+          </form>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <details>
+          <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Importieren…</summary>
+          <form method="post" action="/portfolio-listen/{{ active_list.id }}/import" style="margin-top:6px;">
+            <textarea name="content" rows="4"
+                      style="width:100%; background:var(--bg); color:var(--text);
+                             border:1px solid var(--border); border-radius:4px;
+                             padding:4px; font-size:11px; font-family:monospace;"
+                      placeholder="NASDAQ:AAPL,NYSE:SPY"></textarea>
+            <button type="submit" class="btn-primary"
+                    style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
+          </form>
+        </details>
+
+        <form method="post" action="/portfolio-listen/{{ active_list.id }}/delete"
+              onsubmit="return confirm('Liste »{{ active_list.name }}« und alle {{ items|length }} Einträge löschen?')">
+          <button type="submit" class="btn-danger"
+                  style="font-size:11px; padding:4px 10px; width:100%;">
+            Liste löschen
+          </button>
+        </form>
+
+      </div>
+    </details>
+
+  </div>{# /ticker-panel #}
+
+</div>{# /wl-split #}
+{% endif %}
+
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script>
+(function () {
+  var _mode          = 'W';
+  var _currentSymbol = null;
+
+  var iframe = document.getElementById('chart-frame');
+  var tvDiv  = document.getElementById('tv-chart');
+
+  var FRAME_URL = {
+    'W': '/portfolio-charts',
+    'D': '/portfolio-charts-daily',
+  };
+
+  var _frameBaseUrl  = '/portfolio-charts';
+  var _frameReady    = false;
+  var _pendingAnchor = null;
+
+  function _anchor(tvSymbol) {
+    return 'pnl-' + tvSymbol.replace(/[^A-Za-z0-9]/g, '_');
+  }
+
+  function _callInFrame(anchor) {
+    try {
+      var cw = iframe.contentWindow;
+      if (typeof cw.activateTab === 'function') {
+        if (typeof cw.selectList === 'function') cw.selectList('');
+        cw.activateTab(anchor);
+      } else {
+        cw.location.hash = anchor;
+      }
+    } catch (e) {
+      iframe.src = _frameBaseUrl + '#' + anchor;
+    }
+  }
+
+  if (iframe) {
+    iframe.addEventListener('load', function () {
+      _frameReady = true;
+      if (_pendingAnchor) {
+        var a = _pendingAnchor; _pendingAnchor = null;
+        _callInFrame(a);
+      }
+    });
+  }
+
+  function loadChart(tvSymbol, mode) {
+    mode = mode || _mode;
+    _currentSymbol = tvSymbol;
+
+    if (mode === 'TV') {
+      if (iframe) iframe.style.display = 'none';
+      tvDiv.style.display = 'block';
+      tvDiv.innerHTML = '';
+      new TradingView.widget({
+        container_id:        'tv-chart',
+        symbol:              tvSymbol,
+        interval:            'W',
+        timezone:            'Europe/Berlin',
+        theme:               'dark',
+        style:               '1',
+        locale:              'de_DE',
+        width:               '100%',
+        height:              '100%',
+        hide_side_toolbar:   false,
+        allow_symbol_change: true,
+        save_image:          false,
+      });
+      return;
+    }
+
+    tvDiv.style.display = 'none';
+    if (iframe) iframe.style.display = 'block';
+
+    var url    = FRAME_URL[mode] || FRAME_URL['W'];
+    var anchor = _anchor(tvSymbol);
+
+    if (url === _frameBaseUrl && _frameReady) {
+      _callInFrame(anchor);
+    } else {
+      _frameBaseUrl  = url;
+      _frameReady    = false;
+      _pendingAnchor = anchor;
+      iframe.src     = url + '#' + anchor;
+    }
+  }
+
+  window.setChartMode = function (mode, btn) {
+    _mode = mode;
+    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
+      b.classList.remove('chart-mode-btn--active');
+    });
+    if (btn) btn.classList.add('chart-mode-btn--active');
+    if (_currentSymbol) loadChart(_currentSymbol, mode);
+  };
+
+  var firstItem = document.querySelector('.ticker-item[data-tv-symbol]');
+  if (firstItem) {
+    _currentSymbol = firstItem.dataset.tvSymbol;
+    _frameBaseUrl  = FRAME_URL['W'];
+    _pendingAnchor = _anchor(_currentSymbol);
+  }
+
+  window.rowClick = function (el) {
+    document.querySelectorAll('.ticker-item').forEach(function (t) {
+      t.classList.remove('ticker-item--active');
+    });
+    el.classList.add('ticker-item--active');
+    loadChart(el.dataset.tvSymbol);
+  };
+}());
+</script>
+{% endblock %}

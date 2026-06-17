@@ -11,12 +11,13 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import disco, rsm, portfolio, micro, watchlist
+from routers import disco, rsm, portfolio, micro, watchlist, portfolio_lists
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
 _PIPELINE_TASKS = {
-    "eod":    ("EOD-Update (OHLCV)",          ["src/eod_update.py", "--skip-ibkr"]),
+    "intraday": ("Intraday-Kurse (Snapshot)", ["src/intraday_prices.py"]),
+    "eod":    ("EOD-Update (OHLCV)",          ["src/eod_update.py", "--skip-ibkr"]),  # --skip-ibkr = kein Options-Screen
     "iv":     ("IV-Daten (IBKR Options)",      ["src/run_w3.py", "--ibkr-only"]),
     "scores": ("W3-Scores",                    ["src/run_w3.py", "--skip-update", "--skip-notify"]),
     "charts": ("Charts neu generieren",        ["src/make_charts.py"]),
@@ -35,6 +36,17 @@ app = FastAPI(title="Finanz Dashboard", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+
+@app.middleware("http")
+async def inject_price_updates(request: Request, call_next):
+    """Letzten Intraday/EOD-Timestamp in request.state injizieren (für layout.html)."""
+    try:
+        pool = await db.get_pool()
+        request.state.price_updates = await db.get_price_update_times(pool)
+    except Exception:
+        request.state.price_updates = {}
+    return await call_next(request)
 
 
 def _score_class(v):
@@ -65,6 +77,7 @@ app.include_router(rsm.router)
 app.include_router(portfolio.router)
 app.include_router(micro.router)
 app.include_router(watchlist.router)
+app.include_router(portfolio_lists.router)
 
 
 async def _system_status(pool) -> list[dict]:

@@ -6,16 +6,7 @@
 {# ── Header: Cluster-Tabs + Ranking-Button ────────────────────────────────── #}
 <div class="rsm-header micro-header">
   <nav class="rsm-filter-nav">
-    <a href="/micro"
-       class="rsm-filter-btn{% if active_cluster_id is none %} rsm-filter-btn--active{% endif %}">
-      Alle
-    </a>
-    {% for cl in clusters %}
-    <a href="/micro?cluster_id={{ cl.id }}"
-       class="rsm-filter-btn{% if active_cluster_id == cl.id %} rsm-filter-btn--active{% endif %}">
-      {{ cl.name }}
-    </a>
-    {% endfor %}
+    <a href="/micro" class="rsm-filter-btn rsm-filter-btn--active">Alle</a>
   </nav>
 
   <form method="post"

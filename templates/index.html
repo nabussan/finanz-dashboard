@@ -20,10 +20,16 @@
 
 <h2 style="margin-top: 32px;">Pipeline manuell starten</h2>
 <div class="admin-grid">
+  <form method="post" action="/admin/run/intraday">
+    <button class="admin-btn">
+      <span class="admin-btn-label">Intraday-Kurse</span>
+      <span class="admin-btn-hint">intraday_prices.py (IBKR Snapshot → PG)</span>
+    </button>
+  </form>
   <form method="post" action="/admin/run/eod">
     <button class="admin-btn">
       <span class="admin-btn-label">OHLCV-Preisdaten</span>
-      <span class="admin-btn-hint">eod_update.py --skip-ibkr</span>
+      <span class="admin-btn-hint">eod_update.py (IBKR, kein Options-Screen)</span>
     </button>
   </form>
   <form method="post" action="/admin/run/iv">

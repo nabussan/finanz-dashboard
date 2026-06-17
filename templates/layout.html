@@ -12,12 +12,29 @@
     <div class="sidebar-title">Finanz</div>
     <ul>
       <li><a href="/"           {% if request.url.path == "/" %}class="active"{% endif %}>Übersicht</a></li>
-      <li><a href="/portfolios" {% if request.url.path.startswith("/portfolios") %}class="active"{% endif %}>Portfolios</a></li>
+      <li><a href="/portfolios"       {% if request.url.path.startswith("/portfolios") and not request.url.path.startswith("/portfolio-listen") %}class="active"{% endif %}>Portfolios</a></li>
+      <li><a href="/portfolio-listen" {% if request.url.path.startswith("/portfolio-listen") %}class="active"{% endif %}>PF-Listen</a></li>
       <li><a href="/rsm"        {% if request.url.path == "/rsm" %}class="active"{% endif %}>RSM Gesamt</a></li>
       <li><a href="/watchlists" {% if request.url.path.startswith("/watchlists") %}class="active"{% endif %}>Watchlists</a></li>
       <li><a href="/disco"      {% if request.url.path == "/disco" %}class="active"{% endif %}>Disco</a></li>
       <li><a href="/micro"      {% if request.url.path == "/micro" %}class="active"{% endif %}>Micro</a></li>
     </ul>
+    {# ── Datenstand ──────────────────────────────── #}
+    {% set pu = request.state.price_updates if request.state.price_updates is defined else {} %}
+    <div class="sidebar-datastand">
+      {% if pu.get('intraday') %}
+      <div class="datastand-row">
+        <span class="datastand-label">Intraday</span>
+        <span class="datastand-ts">{{ pu['intraday']['ts'].strftime('%d.%m %H:%M') }}</span>
+      </div>
+      {% endif %}
+      {% if pu.get('eod') %}
+      <div class="datastand-row">
+        <span class="datastand-label">EOD</span>
+        <span class="datastand-ts">{{ pu['eod']['ts'].strftime('%d.%m %H:%M') }}</span>
+      </div>
+      {% endif %}
+    </div>
   </nav>
   <main class="content">
     {% block content %}{% endblock %}
