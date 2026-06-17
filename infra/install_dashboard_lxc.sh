@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Finanz-Dashboard LXC Installation Script
+# DEPRECATED — NICHT die aktiv genutzte Dashboard-Installation.
 # =============================================================================
-# Zweck: Frischen Debian-12-LXC auf dem W541-Proxmox aufsetzen mit
+# Stand 2026-06-17: Produktion läuft NICHT nach diesem Skript. Das echte,
+# laufende Setup (LXC 520 "finance-auto", geteilt mit rsm-live, User=root,
+# Port 8080 direkt ohne nginx, gemeinsame /opt/.env) entsteht durch
+# rsm-live/infra/install_dashboard_lxc.sh — DAS ist das kanonische Skript.
+#
+# Dieses Skript beschreibt einen verworfenen Alternativ-Plan (eigenes LXC 521,
+# dedizierter "finanz"-User, git-clone via SSH-Key, nginx-Reverse-Proxy) und
+# wurde nie so ausgeführt. Bei Bedarf an einem frischen, separaten Dashboard-
+# LXC als Ausgangspunkt verwendbar, aber vorher gegen die echte Produktions-
+# Konfiguration in rsm-live/infra/install_dashboard_lxc.sh abgleichen.
+# =============================================================================
+#
+# Zweck (urspr.): Frischen Debian-12-LXC auf dem W541-Proxmox aufsetzen mit
 #        finanz-dashboard (FastAPI + uvicorn) als systemd-Service.
 #
 # PostgreSQL läuft im LXC 520 (finance-auto) oder auf dem W541-Host.
@@ -20,7 +32,8 @@
 # Voraussetzungen:
 #   - W541 Proxmox läuft, Debian-12-Template vorhanden (oder wird geladen)
 #   - PostgreSQL pg_hba.conf erlaubt Verbindung von LXC_IP (einmalig manuell)
-#   - GitHub SSH-Key ist auf dem Proxmox-Host eingerichtet (für git clone)
+#   - GitHub Personal-Access-Token für HTTPS-Clone (kein SSH-Key im LXC nötig
+#     — Produktion nutzt durchgehend HTTPS + credential.helper=store)
 # =============================================================================
 
 set -euo pipefail
@@ -39,7 +52,7 @@ LXC_RAM_MB="${LXC_RAM_MB:-512}"
 LXC_CORES="${LXC_CORES:-1}"
 
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
-REPO_URL="${REPO_URL:-git@github.com:nabussan/finanz-dashboard.git}"
+REPO_URL="${REPO_URL:-https://github.com/nabussan/finanz-dashboard.git}"
 REPO_PATH="/opt/finanz-dashboard"
 APP_USER="${APP_USER:-finanz}"
 
@@ -89,23 +102,18 @@ log "=== Phase 3: App-User + Verzeichnis ==="
 lxc "id $APP_USER &>/dev/null || useradd -r -m -s /bin/bash $APP_USER"
 lxc "mkdir -p $REPO_PATH && chown $APP_USER:$APP_USER $REPO_PATH"
 
-log "=== Phase 4: SSH-Key für GitHub ==="
+log "=== Phase 4: GitHub-Zugriff (HTTPS + Token) ==="
 
-# SSH-Key vom Proxmox-Host in den LXC kopieren
-# (Voraussetzung: ~/.ssh/id_ed25519 auf dem Proxmox-Host)
-mkdir -p "/var/lib/lxc/${LXC_ID}/rootfs/home/${APP_USER}/.ssh"
-cp ~/.ssh/id_ed25519     "/var/lib/lxc/${LXC_ID}/rootfs/home/${APP_USER}/.ssh/"
-cp ~/.ssh/id_ed25519.pub "/var/lib/lxc/${LXC_ID}/rootfs/home/${APP_USER}/.ssh/"
-cat > "/var/lib/lxc/${LXC_ID}/rootfs/home/${APP_USER}/.ssh/config" <<EOF
-Host github.com
-    IdentityFile ~/.ssh/id_ed25519
-    StrictHostKeyChecking no
-EOF
-lxc "chown -R $APP_USER:$APP_USER /home/$APP_USER/.ssh && chmod 700 /home/$APP_USER/.ssh && chmod 600 /home/$APP_USER/.ssh/id_ed25519"
+# Kein SSH-Key nötig — HTTPS-Clone via Personal-Access-Token, danach
+# credential.helper=store für nachfolgende `git pull`-Aufrufe im LXC.
+: "${GITHUB_TOKEN:?Fehler: GITHUB_TOKEN muss gesetzt sein (HTTPS-Clone, kein SSH-Key im LXC)}"
+lxc "su - $APP_USER -c 'git config --global credential.helper store'"
+lxc "su - $APP_USER -c \"echo https://${GITHUB_TOKEN}@github.com > ~/.git-credentials && chmod 600 ~/.git-credentials\""
 
 log "=== Phase 5: Repo klonen ==="
 
 lxc "su - $APP_USER -c 'git clone $REPO_URL $REPO_PATH 2>/dev/null || (cd $REPO_PATH && git pull)'"
+lxc "git -C $REPO_PATH remote set-url origin $REPO_URL"
 
 log "=== Phase 6: Python-Virtualenv + Abhängigkeiten ==="
 
