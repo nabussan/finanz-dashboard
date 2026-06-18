@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -124,9 +124,12 @@ def _gateway_status() -> dict:
 
     name = "IBKR Gateway"
     check_now = {"url": "/admin/gateway/check-now", "label": "Jetzt prüfen"}
+    links = [{"url": "/admin/gateway/screen", "label": "Gateway-Screen anzeigen"}] \
+        if config.GATEWAY_SCREENSHOT_KEY else []
 
     if not config.GATEWAY_HOST:
-        return {"name": name, "status": "grey", "label": "nicht konfiguriert", "url": None, "actions": []}
+        return {"name": name, "status": "grey", "label": "nicht konfiguriert", "url": None,
+                "actions": [], "links": []}
 
     state = {}
     state_file = config.RSM_DATA_DIR / "gateway_state.json"
@@ -145,15 +148,17 @@ def _gateway_status() -> dict:
 
     if age_min is None or age_min > 20:
         label = "Health-Check nie gelaufen" if age_min is None else f"Health-Check seit {int(age_min)}min inaktiv"
-        return {"name": name, "status": "grey", "label": label, "url": None, "actions": [check_now]}
+        return {"name": name, "status": "grey", "label": label, "url": None,
+                "actions": [check_now], "links": links}
 
     if state.get("status") == "up":
         return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
-                "url": None, "actions": []}
+                "url": None, "actions": [], "links": links}
 
     return {
         "name": name, "status": "red", "label": "nicht verbunden — Re-Login nötig", "url": None,
         "actions": [{"url": "/admin/gateway/restart", "label": "Re-Login starten"}, check_now],
+        "links": links,
     }
 
 
@@ -205,6 +210,28 @@ async def gateway_check_now():
     venv_python = str(RSM_DIR / ".venv" / "bin" / "python3")
     subprocess.Popen([venv_python, "src/check_gateway.py"], cwd=str(RSM_DIR))
     return RedirectResponse("/?triggered=Gateway-Check+gestartet", status_code=303)
+
+
+@app.get("/admin/gateway/screen")
+async def gateway_screen():
+    """Live-Screenshot des Gateway-Bildschirms (Login/2FA/Settings) — per
+    Forced-Command-SSH-Key, der ausschliesslich scrot ausfuehren kann.
+    """
+    if not (config.GATEWAY_HOST and config.GATEWAY_SCREENSHOT_KEY):
+        return HTMLResponse("Gateway-Screenshot nicht konfiguriert.", status_code=503)
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", config.GATEWAY_SCREENSHOT_KEY,
+             "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10",
+             f"root@{config.GATEWAY_HOST}"],
+            capture_output=True, timeout=20,
+        )
+    except subprocess.TimeoutExpired:
+        return HTMLResponse("Screenshot-Timeout.", status_code=504)
+    if result.returncode != 0 or not result.stdout:
+        return HTMLResponse(
+            f"Screenshot fehlgeschlagen: {result.stderr.decode(errors='replace')}", status_code=502)
+    return Response(content=result.stdout, media_type="image/png")
 
 
 @app.get("/admin/log")

@@ -155,12 +155,14 @@ h2 { font-size: 16px; margin: 24px 0 12px; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 
 .card-action-btn {
+  display: inline-block;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 5px 10px;
   font-size: 11px;
   color: var(--text);
+  text-decoration: none;
   cursor: pointer;
   transition: border-color .15s;
 }

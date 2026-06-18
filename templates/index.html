@@ -9,12 +9,15 @@
     <div class="card-name">{{ s.name }}</div>
     <div class="card-label">{{ s.label }}</div>
     <div class="card-dot"></div>
-    {% if s.actions %}
+    {% if s.actions or s.links %}
     <div class="card-actions">
       {% for action in s.actions %}
       <form method="post" action="{{ action.url }}" onsubmit="event.stopPropagation()">
         <button class="card-action-btn">{{ action.label }}</button>
       </form>
+      {% endfor %}
+      {% for link in s.links %}
+      <a class="card-action-btn" href="{{ link.url }}" target="_blank" onclick="event.stopPropagation()">{{ link.label }}</a>
       {% endfor %}
     </div>
     {% endif %}
