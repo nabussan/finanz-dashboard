@@ -1,5 +1,6 @@
 """Finanz Dashboard — FastAPI entry point."""
 import asyncio
+import json
 import subprocess
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -117,10 +118,50 @@ async def _system_status(pool) -> list[dict]:
     return systems
 
 
+def _gateway_status() -> dict:
+    """IBKR-Gateway-Karte: liest gateway_state.json (Cron check_gateway.py)."""
+    from datetime import datetime
+
+    name = "IBKR Gateway"
+    check_now = {"url": "/admin/gateway/check-now", "label": "Jetzt prüfen"}
+
+    if not config.GATEWAY_HOST:
+        return {"name": name, "status": "grey", "label": "nicht konfiguriert", "url": None, "actions": []}
+
+    state = {}
+    state_file = config.RSM_DATA_DIR / "gateway_state.json"
+    if state_file.exists():
+        try:
+            state = json.loads(state_file.read_text())
+        except Exception:
+            state = {}
+
+    age_min = None
+    if state.get("checked_at"):
+        try:
+            age_min = (datetime.now() - datetime.fromisoformat(state["checked_at"])).total_seconds() / 60
+        except Exception:
+            age_min = None
+
+    if age_min is None or age_min > 20:
+        label = "Health-Check nie gelaufen" if age_min is None else f"Health-Check seit {int(age_min)}min inaktiv"
+        return {"name": name, "status": "grey", "label": label, "url": None, "actions": [check_now]}
+
+    if state.get("status") == "up":
+        return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
+                "url": None, "actions": []}
+
+    return {
+        "name": name, "status": "red", "label": "nicht verbunden — Re-Login nötig", "url": None,
+        "actions": [{"url": "/admin/gateway/restart", "label": "Re-Login starten"}, check_now],
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     pool = await db.get_pool()
     systems = await _system_status(pool)
+    systems.append(_gateway_status())
     return templates.TemplateResponse(request, "index.html", {"systems": systems})
 
 
@@ -140,6 +181,30 @@ async def admin_run(task: str):
 
     label = _PIPELINE_TASKS[task][0]
     return RedirectResponse(f"/?triggered={label}", status_code=303)
+
+
+@app.post("/admin/gateway/restart")
+async def gateway_restart():
+    """Loest per SSH (Forced-Command-Key) einen Neustart des IBKR-Gateways aus.
+
+    Welches Kommando tatsaechlich laeuft, bestimmt die authorized_keys-Zeile
+    auf dem Gateway-LXC (command="systemctl restart ibgateway") — was hier
+    als Argument uebergeben wird, ist irrelevant.
+    """
+    if config.GATEWAY_HOST and config.GATEWAY_RESTART_KEY:
+        subprocess.Popen([
+            "ssh", "-i", config.GATEWAY_RESTART_KEY,
+            "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10",
+            f"root@{config.GATEWAY_HOST}", "restart",
+        ])
+    return RedirectResponse("/?triggered=Gateway-Re-Login+gestartet", status_code=303)
+
+
+@app.post("/admin/gateway/check-now")
+async def gateway_check_now():
+    venv_python = str(RSM_DIR / ".venv" / "bin" / "python3")
+    subprocess.Popen([venv_python, "src/check_gateway.py"], cwd=str(RSM_DIR))
+    return RedirectResponse("/?triggered=Gateway-Check+gestartet", status_code=303)
 
 
 @app.get("/admin/log")

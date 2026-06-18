@@ -8,6 +8,11 @@ load_dotenv(_REPO_ROOT / ".env")
 DB_URL: str = os.environ.get("DB_URL", "")
 PORT: int = int(os.environ.get("DASHBOARD_PORT", "8080"))
 
+# Gepaartes IBKR-Gateway-LXC (fuer Status-Karte + Re-Login-Button)
+GATEWAY_HOST: str        = os.environ.get("GATEWAY_HOST", "")
+GATEWAY_LXC_ID: str       = os.environ.get("GATEWAY_LXC_ID", "")
+GATEWAY_RESTART_KEY: str = os.environ.get("GATEWAY_RESTART_KEY", "")
+
 # Pfade zu generierten Artefakten der Quellsysteme
 DISCO_OUTPUT_DIR = Path(os.environ.get("DISCO_OUTPUT_DIR", _REPO_ROOT / "disco/output"))
 RSM_DATA_DIR     = Path(os.environ.get("RSM_DATA_DIR",     _REPO_ROOT / "rsm-live/data"))

@@ -4,11 +4,21 @@
 <h1>Übersicht</h1>
 <div class="cards">
   {% for s in systems %}
-  <a href="{{ s.url }}" class="card card--{{ s.status }}">
+  {% set tag = "a" if s.url else "div" %}
+  <{{ tag }}{% if s.url %} href="{{ s.url }}"{% endif %} class="card card--{{ s.status }}">
     <div class="card-name">{{ s.name }}</div>
     <div class="card-label">{{ s.label }}</div>
     <div class="card-dot"></div>
-  </a>
+    {% if s.actions %}
+    <div class="card-actions">
+      {% for action in s.actions %}
+      <form method="post" action="{{ action.url }}" onsubmit="event.stopPropagation()">
+        <button class="card-action-btn">{{ action.label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </{{ tag }}>
   {% endfor %}
 </div>
 
