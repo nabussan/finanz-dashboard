@@ -5,7 +5,7 @@
 <div class="cards">
   {% for s in systems %}
   {% set tag = "a" if s.url else "div" %}
-  <{{ tag }}{% if s.url %} href="{{ s.url }}"{% endif %} class="card card--{{ s.status }}">
+  <{{ tag }}{% if s.url %} href="{{ s.url }}"{% endif %} class="card card--{{ s.status }}{% if s.wide %} card--wide{% endif %}">
     <div class="card-name">{{ s.name }}</div>
     <div class="card-label">{{ s.label }}</div>
     <div class="card-dot"></div>
@@ -13,8 +13,10 @@
     <div class="card-actions">
       {% for action in s.actions %}
       <form method="post" action="{{ action.url }}" onsubmit="event.stopPropagation()" class="card-action-form">
-        <button class="card-action-btn">{{ action.label }}</button>
-        {% if action.hint %}<div class="card-action-hint">{{ action.hint }}</div>{% endif %}
+        <button class="card-action-btn">
+          <span class="card-action-label">{{ action.label }}</span>
+          {% if action.hint %}<span class="card-action-hint">{{ action.hint }}</span>{% endif %}
+        </button>
       </form>
       {% endfor %}
       {% for link in s.links %}

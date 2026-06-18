@@ -119,7 +119,12 @@ async def _system_status(pool) -> list[dict]:
 
 
 def _gateway_status() -> dict:
-    """IBKR-Gateway-Karte: liest gateway_state.json (Cron check_gateway.py)."""
+    """IBKR-Gateway-Karte: liest gateway_state.json (Cron check_gateway.py).
+
+    'wide': True auf allen Rückgaben — Karte ist breiter als die anderen
+    (card--wide), damit die Reconnect/Re-Login-Hinweistexte in den Buttons
+    nicht umbrechen und sich die Kartenbreite nicht je nach Status ändert.
+    """
     from datetime import datetime
 
     name = "IBKR Gateway"
@@ -129,7 +134,7 @@ def _gateway_status() -> dict:
 
     if not config.GATEWAY_HOST:
         return {"name": name, "status": "grey", "label": "nicht konfiguriert", "url": None,
-                "actions": [], "links": []}
+                "actions": [], "links": [], "wide": True}
 
     state = {}
     state_file = config.RSM_DATA_DIR / "gateway_state.json"
@@ -149,11 +154,11 @@ def _gateway_status() -> dict:
     if age_min is None or age_min > 20:
         label = "Health-Check nie gelaufen" if age_min is None else f"Health-Check seit {int(age_min)}min inaktiv"
         return {"name": name, "status": "grey", "label": label, "url": None,
-                "actions": [check_now], "links": links}
+                "actions": [check_now], "links": links, "wide": True}
 
     if state.get("status") == "up":
         return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
-                "url": None, "actions": [check_now], "links": links}
+                "url": None, "actions": [check_now], "links": links, "wide": True}
 
     actions = []
     if config.GATEWAY_RECONNECT_KEY:
@@ -172,6 +177,7 @@ def _gateway_status() -> dict:
         "name": name, "status": "red", "label": "nicht verbunden — Re-Login nötig", "url": None,
         "actions": actions,
         "links": links,
+        "wide": True,
     }
 
 
