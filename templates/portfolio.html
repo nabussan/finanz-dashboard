@@ -64,14 +64,27 @@
         <span class="pos-label">Stop</span>
         <span class="pos-value" id="pos-stop">—</span>
       </span>
+      <span class="pos-sep"></span>
+      <span class="pos-field">
+        <span class="pos-label">Aktualisiert</span>
+        <span class="pos-value" id="pos-updated">—</span>
+      </span>
     </div>
 
-    {# ── Chart-Panel ─────────────────────────────────────────────── #}
+    {# ── Chart-Panel — W / D / TV ────────────────────────────────── #}
     <div class="chart-panel">
       {% if charts_available %}
-      <iframe id="chart-frame"
-              src="/portfolio-charts"
-              title="RSM Chart"></iframe>
+      <div class="chart-controls">
+        <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
+        <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
+        <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
+      </div>
+      <div class="chart-body">
+        <iframe id="chart-frame"
+                src="/portfolio-charts"
+                title="RSM Chart"></iframe>
+        <div id="tv-chart"></div>
+      </div>
       {% else %}
       <div class="chart-placeholder">
         Positionscharts nicht verfügbar — <code>make_charts.py</code> ausführen.
@@ -96,6 +109,7 @@
          data-current="{{ '%.2f' | format(p.current_price) if p.current_price is not none else '' }}"
          data-pnl="{{ '%+.2f' | format(p.pnl_pct) if p.pnl_pct is not none else '' }}"
          data-stop="{{ '%.2f' | format(p.stop_price) if p.stop_price is not none else '' }}"
+         data-updated="{{ p.updated.strftime('%d.%m.%Y %H:%M') if p.updated else '' }}"
          onclick="switchChart(this)">
       <div class="ticker-symbol">
         {{ tv }}
@@ -117,11 +131,23 @@
 </div>{# /wl-split #}
 {% endif %}
 
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script>
 (function () {
+  let _mode          = 'W';
+  let _currentSymbol = null;
+
   const iframe = document.getElementById('chart-frame');
-  let chartLoaded = false;
-  let pendingAnchor = null;
+  const tvDiv  = document.getElementById('tv-chart');
+
+  const FRAME_URL = {
+    'W': '/portfolio-charts',
+    'D': '/portfolio-charts-daily',
+  };
+
+  let _frameBaseUrl  = '/portfolio-charts';
+  let _frameReady    = false;
+  let _pendingAnchor = null;
 
   function updatePosInfo(el) {
     document.getElementById('pos-ticker').textContent    = el.dataset.ticker || '—';
@@ -130,6 +156,7 @@
     document.getElementById('pos-qty').textContent       = el.dataset.qty || '—';
     document.getElementById('pos-current').textContent   = el.dataset.current || '—';
     document.getElementById('pos-stop').textContent      = el.dataset.stop || '—';
+    document.getElementById('pos-updated').textContent   = el.dataset.updated || '—';
 
     const pnlEl = document.getElementById('pos-pnl');
     const pnl   = el.dataset.pnl;
@@ -148,27 +175,78 @@
         cw.location.hash = anchor;
       }
     } catch (e) {
-      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+      if (iframe) iframe.src = _frameBaseUrl + '#' + anchor;
     }
   }
 
   if (iframe) {
     iframe.addEventListener('load', function () {
-      chartLoaded = true;
-      const target = pendingAnchor;
-      pendingAnchor = null;
-      if (target) {
-        callInFrame(target);
-      } else {
-        const first = document.querySelector('.ticker-item[data-anchor]');
-        if (first) callInFrame(first.dataset.anchor);
-      }
+      _frameReady = true;
+      const target = _pendingAnchor;
+      _pendingAnchor = null;
+      if (target) callInFrame(target);
     });
   }
 
-  // Init pos-info-bar with first ticker on page load
+  function loadChart(el, mode) {
+    mode = mode || _mode;
+    const tvSymbol = el.dataset.ticker;
+    const anchor   = el.dataset.anchor;
+    _currentSymbol = el;
+
+    if (mode === 'TV') {
+      if (iframe) iframe.style.display = 'none';
+      if (tvDiv) {
+        tvDiv.style.display = 'block';
+        tvDiv.innerHTML = '';
+        new TradingView.widget({
+          container_id:        'tv-chart',
+          symbol:              tvSymbol,
+          interval:            'W',
+          timezone:            'Europe/Berlin',
+          theme:               'dark',
+          style:               '1',
+          locale:              'de_DE',
+          width:               '100%',
+          height:              '100%',
+          hide_side_toolbar:   false,
+          allow_symbol_change: true,
+          save_image:          false,
+        });
+      }
+      return;
+    }
+
+    if (tvDiv) tvDiv.style.display = 'none';
+    if (iframe) iframe.style.display = 'block';
+
+    const url = FRAME_URL[mode] || FRAME_URL['W'];
+    if (url === _frameBaseUrl && _frameReady) {
+      callInFrame(anchor);
+    } else {
+      _frameBaseUrl  = url;
+      _frameReady    = false;
+      _pendingAnchor = anchor;
+      if (iframe) iframe.src = url + '#' + anchor;
+    }
+  }
+
+  window.setChartMode = function (mode, btn) {
+    _mode = mode;
+    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
+      b.classList.remove('chart-mode-btn--active');
+    });
+    if (btn) btn.classList.add('chart-mode-btn--active');
+    if (_currentSymbol) loadChart(_currentSymbol, mode);
+  };
+
+  // Init pos-info-bar + chart with first ticker on page load
   const firstItem = document.querySelector('.ticker-item[data-anchor]');
-  if (firstItem) updatePosInfo(firstItem);
+  if (firstItem) {
+    updatePosInfo(firstItem);
+    _currentSymbol = firstItem;
+    _pendingAnchor = firstItem.dataset.anchor;
+  }
 
   window.switchChart = function (el) {
     const anchor = el.dataset.anchor;
@@ -178,11 +256,7 @@
     });
     el.classList.add('ticker-item--active');
     updatePosInfo(el);
-    if (chartLoaded) {
-      callInFrame(anchor);
-    } else {
-      pendingAnchor = anchor;
-    }
+    loadChart(el);
   };
 }());
 </script>
