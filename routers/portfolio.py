@@ -55,7 +55,7 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
             p.entry_date, p.entry_price, p.qty, p.stop_price, p.broker,
             r.close      AS current_price,
             ROUND(((r.close - p.entry_price) / p.entry_price) * 100, 2) AS pnl_pct,
-            p.updated,
+            p.updated AT TIME ZONE 'Europe/Berlin' AS updated,
             s.tv_symbol,
             s.score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
         FROM positions p
