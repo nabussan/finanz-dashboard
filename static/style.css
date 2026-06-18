@@ -152,7 +152,9 @@ h2 { font-size: 16px; margin: 24px 0 12px; }
 .card--red    .card-dot { background: var(--red); }
 .card--grey   .card-dot { background: var(--muted); }
 
-.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.card-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.card-action-form { display: flex; flex-direction: column; gap: 2px; }
 
 .card-action-btn {
   display: inline-block;
@@ -165,9 +167,17 @@ h2 { font-size: 16px; margin: 24px 0 12px; }
   text-decoration: none;
   cursor: pointer;
   transition: border-color .15s;
+  align-self: flex-start;
 }
 
 .card-action-btn:hover { border-color: var(--blue); }
+
+.card-action-hint {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
+  max-width: 220px;
+}
 
 /* ── Tables ─────────────────────────────────────── */
 

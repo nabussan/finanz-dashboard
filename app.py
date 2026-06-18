@@ -157,8 +157,15 @@ def _gateway_status() -> dict:
 
     actions = []
     if config.GATEWAY_RECONNECT_KEY:
-        actions.append({"url": "/admin/gateway/reconnect", "label": "Reconnect (Session-Konflikt)"})
-    actions.append({"url": "/admin/gateway/restart", "label": "Re-Login starten"})
+        actions.append({
+            "url": "/admin/gateway/reconnect", "label": "Reconnect (Session-Konflikt)",
+            "hint": "Erst probieren — kostenlos, sofort, kein 2FA.",
+        })
+    actions.append({
+        "url": "/admin/gateway/restart", "label": "Re-Login starten",
+        "hint": "Nur falls Reconnect 'kein Konflikt' meldet, Gateway aber"
+                " down bleibt (Crash/Hang/2FA-Timeout). Voller Neustart, neues 2FA.",
+    })
     actions.append(check_now)
 
     return {
