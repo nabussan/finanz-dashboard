@@ -153,7 +153,7 @@ def _gateway_status() -> dict:
 
     if state.get("status") == "up":
         return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
-                "url": None, "actions": [], "links": links}
+                "url": None, "actions": [check_now], "links": links}
 
     actions = []
     if config.GATEWAY_RECONNECT_KEY:
