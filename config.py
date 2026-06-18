@@ -13,6 +13,7 @@ GATEWAY_HOST: str        = os.environ.get("GATEWAY_HOST", "")
 GATEWAY_LXC_ID: str       = os.environ.get("GATEWAY_LXC_ID", "")
 GATEWAY_RESTART_KEY: str = os.environ.get("GATEWAY_RESTART_KEY", "")
 GATEWAY_SCREENSHOT_KEY: str = os.environ.get("GATEWAY_SCREENSHOT_KEY", "")
+GATEWAY_RECONNECT_KEY: str = os.environ.get("GATEWAY_RECONNECT_KEY", "")
 
 # Pfade zu generierten Artefakten der Quellsysteme
 DISCO_OUTPUT_DIR = Path(os.environ.get("DISCO_OUTPUT_DIR", _REPO_ROOT / "disco/output"))

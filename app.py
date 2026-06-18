@@ -155,9 +155,15 @@ def _gateway_status() -> dict:
         return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
                 "url": None, "actions": [], "links": links}
 
+    actions = []
+    if config.GATEWAY_RECONNECT_KEY:
+        actions.append({"url": "/admin/gateway/reconnect", "label": "Reconnect (Session-Konflikt)"})
+    actions.append({"url": "/admin/gateway/restart", "label": "Re-Login starten"})
+    actions.append(check_now)
+
     return {
         "name": name, "status": "red", "label": "nicht verbunden — Re-Login nötig", "url": None,
-        "actions": [{"url": "/admin/gateway/restart", "label": "Re-Login starten"}, check_now],
+        "actions": actions,
         "links": links,
     }
 
@@ -203,6 +209,28 @@ async def gateway_restart():
             f"root@{config.GATEWAY_HOST}", "restart",
         ])
     return RedirectResponse("/?triggered=Gateway-Re-Login+gestartet", status_code=303)
+
+
+@app.post("/admin/gateway/reconnect")
+async def gateway_reconnect():
+    """Klickt 'Reconnect This Session' im IBKR-Session-Konflikt-Dialog per
+    SSH (Forced-Command-Key, xdotool) — fuer den Fall, dass eine parallele
+    TWS-Anmeldung das Gateway aus der API-Session geworfen hat. Leichter
+    als ein voller Re-Login (kein IBC-Neustart, kein erneutes 2FA).
+    """
+    if not (config.GATEWAY_HOST and config.GATEWAY_RECONNECT_KEY):
+        return HTMLResponse("Gateway-Reconnect nicht konfiguriert.", status_code=503)
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", config.GATEWAY_RECONNECT_KEY,
+             "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10",
+             f"root@{config.GATEWAY_HOST}"],
+            capture_output=True, timeout=15, text=True,
+        )
+    except subprocess.TimeoutExpired:
+        return HTMLResponse("Reconnect-Timeout.", status_code=504)
+    msg = "Reconnect+ausgeloest" if result.stdout.strip() == "clicked" else "Kein+Session-Konflikt+erkannt"
+    return RedirectResponse(f"/?triggered={msg}", status_code=303)
 
 
 @app.post("/admin/gateway/check-now")

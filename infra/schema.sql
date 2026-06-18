@@ -61,13 +61,16 @@ CREATE INDEX IF NOT EXISTS signals_ticker_idx   ON signals(ticker);
 
 -- Input: IBKR live (ibkr_portfolio.py) + Excel fuer externe Broker
 CREATE TABLE IF NOT EXISTS positions (
-    ticker      TEXT PRIMARY KEY,
-    entry_date  DATE,
-    entry_price NUMERIC,
-    qty         NUMERIC,
-    stop_price  NUMERIC,
-    broker      TEXT NOT NULL DEFAULT 'ibkr',  -- 'ibkr' | 'boom' | 'consors' | 'ing' | 'targo'
-    updated     TIMESTAMPTZ DEFAULT NOW()
+    ticker        TEXT PRIMARY KEY,
+    tv_symbol     TEXT,                          -- TradingView-Format (Migration auf Bestandstabellen)
+    currency      TEXT,                          -- echte IBKR-Currency (z.B. 'HKD'), aus Positions-Sync
+    ibkr_exchange TEXT,                           -- echte IBKR-primaryExchange (z.B. 'SEHK'), aus Positions-Sync
+    entry_date    DATE,
+    entry_price   NUMERIC,
+    qty           NUMERIC,
+    stop_price    NUMERIC,
+    broker        TEXT NOT NULL DEFAULT 'ibkr',  -- 'ibkr' | 'boom' | 'consors' | 'ing' | 'targo'
+    updated       TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ─── disco ───────────────────────────────────────────────────────────────────
