@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS signals (
     iv_rank    NUMERIC,
     vrp        NUMERIC,
     ann_return NUMERIC,
-    klasse     TEXT            -- 'A', 'B', 'C', 'D'
+    klasse     TEXT,           -- 'A', 'B', 'C', 'D'
+    UNIQUE (ticker, run_date)  -- ein Signal pro Ticker+Tag, run_w3.py upserted
 );
 CREATE INDEX IF NOT EXISTS signals_run_date_idx ON signals(run_date DESC);
 CREATE INDEX IF NOT EXISTS signals_ticker_idx   ON signals(ticker);
