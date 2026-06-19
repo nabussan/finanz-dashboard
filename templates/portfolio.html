@@ -83,11 +83,6 @@
     {# ── Chart-Panel — W / D / TV ────────────────────────────────── #}
     <div class="chart-panel">
       {% if charts_available %}
-      <div class="chart-controls">
-        <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
-        <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
-        <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
-      </div>
       <div class="chart-body">
         <iframe id="chart-frame"
                 src="/portfolio-charts"
