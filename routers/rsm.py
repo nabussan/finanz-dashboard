@@ -17,13 +17,18 @@ async def rsm_page(request: Request, sort: str = "score"):
     rows = await pool.fetch(
         f"""
         SELECT ticker, run_date, signal, score, z_score, iv_rank, vrp, ann_return,
-               klasse, klasse_updated
+               klasse, klasse_updated, run_at AT TIME ZONE 'Europe/Berlin' AS run_at
         FROM signals
         WHERE run_date = (SELECT MAX(run_date) FROM signals)
         ORDER BY {order_col} DESC NULLS LAST
         """
     )
-    last_run = rows[0]["run_date"] if rows else None
+    if rows and rows[0]["run_at"]:
+        last_run = rows[0]["run_at"].strftime("%d.%m.%Y %H:%M")
+    elif rows:
+        last_run = rows[0]["run_date"].strftime("%d.%m.%Y")
+    else:
+        last_run = None
     klasse_dates = [r["klasse_updated"] for r in rows if r["klasse_updated"] is not None]
     klasse_stand = min(klasse_dates) if klasse_dates else None
     return templates.TemplateResponse(

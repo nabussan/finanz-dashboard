@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS signals (
     ann_return NUMERIC,
     klasse     TEXT,           -- 'A', 'B', 'C', 'D'
     klasse_updated DATE,       -- wann determine_class.py die Klasse zuletzt gesetzt hat
+    run_at     TIMESTAMPTZ DEFAULT NOW(),  -- Uhrzeit des run_w3.py-Laufs (run_date hat nur Tagesaufloesung)
     UNIQUE (ticker, run_date)  -- ein Signal pro Ticker+Tag, run_w3.py upserted
 );
 CREATE INDEX IF NOT EXISTS signals_run_date_idx ON signals(run_date DESC);

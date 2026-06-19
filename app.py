@@ -146,19 +146,22 @@ def _gateway_status() -> dict:
             state = {}
 
     age_min = None
+    checked_dt = None
     if state.get("checked_at"):
         try:
-            age_min = (datetime.now() - datetime.fromisoformat(state["checked_at"])).total_seconds() / 60
+            checked_dt = datetime.fromisoformat(state["checked_at"])
+            age_min = (datetime.now() - checked_dt).total_seconds() / 60
         except Exception:
             age_min = None
+    checked_str = checked_dt.strftime("%d.%m.%Y %H:%M:%S") if checked_dt else None
 
     if age_min is None or age_min > 20:
-        label = "Health-Check nie gelaufen" if age_min is None else f"Health-Check seit {int(age_min)}min inaktiv"
+        label = "Health-Check nie gelaufen" if age_min is None else f"Health-Check seit {int(age_min)}min inaktiv (zuletzt geprüft: {checked_str})"
         return {"name": name, "status": "grey", "label": label, "url": None,
                 "actions": [check_now], "links": links, "wide": True}
 
     if state.get("status") == "up":
-        return {"name": name, "status": "green", "label": f"verbunden (vor {int(age_min)}min geprüft)",
+        return {"name": name, "status": "green", "label": f"verbunden (zuletzt geprüft: {checked_str})",
                 "url": None, "actions": [check_now], "links": links, "wide": True}
 
     actions = []
