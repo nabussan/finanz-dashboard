@@ -755,6 +755,8 @@ td a:hover { text-decoration: underline; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .portfolio-header .tab-nav {

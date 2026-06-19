@@ -13,6 +13,15 @@
     <a href="/portfolios?broker=sonstige"
        class="tab-link{% if active_broker == 'sonstige' %} tab-link--active{% endif %}">Sonstige</a>
   </nav>
+  {% if klasse_stand %}<span class="rsm-run-date">Klasse: {{ klasse_stand.strftime('%d.%m.%Y') }}</span>{% endif %}
+  {% if positions %}
+  <form method="post" action="/portfolios/reclassify?broker={{ active_broker }}" style="margin-left:8px;">
+    <button type="submit" class="btn-secondary" style="font-size:11px; padding:3px 8px;"
+            title="OOS-Backtest für diesen Broker-Tab neu laufen lassen, Ergebnis nach ~1 Min sichtbar">
+      ↻ Klasse neu berechnen
+    </button>
+  </form>
+  {% endif %}
 </div>
 
 {% if not positions %}

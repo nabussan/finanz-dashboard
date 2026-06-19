@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import db
 import config
+from routers._cluster_shared import trigger_reclassify
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -57,10 +58,10 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
             ROUND(((r.close - p.entry_price) / p.entry_price) * 100, 2) AS pnl_pct,
             p.updated AT TIME ZONE 'Europe/Berlin' AS updated,
             s.tv_symbol,
-            s.score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
+            s.score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse, s.klasse_updated
         FROM positions p
         LEFT JOIN LATERAL (
-            SELECT ticker AS tv_symbol, score, iv_rank, vrp, ann_return, signal, klasse
+            SELECT ticker AS tv_symbol, score, iv_rank, vrp, ann_return, signal, klasse, klasse_updated
             FROM signals
             WHERE SPLIT_PART(ticker, ':', 2) = p.ticker
             ORDER BY run_date DESC LIMIT 1
@@ -80,16 +81,38 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
         broker,
     )
 
+    rows = [dict(p) for p in positions]
+    klasse_dates = [r["klasse_updated"] for r in rows if r["klasse_updated"] is not None]
+    klasse_stand = min(klasse_dates) if klasse_dates else None
+
     charts_available = config.RSM_PORTFOLIO_HTML.exists()
     return templates.TemplateResponse(
         request,
         "portfolio.html",
         {
-            "positions": [dict(p) for p in positions],
+            "positions": rows,
             "active_broker": broker,
             "charts_available": charts_available,
+            "klasse_stand": klasse_stand,
         },
     )
+
+
+@router.post("/portfolios/reclassify")
+async def reclassify_portfolio(broker: str = Query("ibkr")):
+    if broker not in _VALID_BROKERS:
+        broker = "ibkr"
+    pool = await db.get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT tv_symbol FROM positions
+        WHERE tv_symbol IS NOT NULL AND tv_symbol LIKE '%:%'
+          AND CASE WHEN $1 = 'sonstige' THEN broker NOT IN ('ibkr', 'ibkr-h') ELSE broker = $1 END
+        """,
+        broker,
+    )
+    trigger_reclassify([r["tv_symbol"] for r in rows])
+    return RedirectResponse(f"/portfolios?broker={broker}&reclassify=1", status_code=303)
 
 
 @router.get("/portfolio-charts")

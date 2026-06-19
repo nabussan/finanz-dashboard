@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 import db
 from routers._cluster_shared import (
     parse_tv_import, upsert_cluster, insert_items,
-    tickers_missing_prices, trigger_ondemand_update,
+    tickers_missing_prices, trigger_ondemand_update, trigger_reclassify,
     delete_item, delete_cluster,
 )
 
@@ -70,7 +70,8 @@ async def portfolio_listen_page(request: Request, list_id: int,
             CASE
                 WHEN r2.close IS NOT NULL AND r2.close <> 0
                 THEN ROUND(((r1.close - r2.close) / r2.close) * 100, 2)
-            END AS change_pct
+            END AS change_pct,
+            s.klasse_updated
         FROM cluster_items i
         LEFT JOIN LATERAL (
             SELECT close, date FROM rsm_prices
@@ -82,20 +83,29 @@ async def portfolio_listen_page(request: Request, list_id: int,
             WHERE ticker = i.tv_symbol AND interval = '1day' AND date < r1.date
             ORDER BY date DESC LIMIT 1
         ) r2 ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT klasse_updated FROM signals
+            WHERE ticker = i.tv_symbol
+            ORDER BY run_date DESC LIMIT 1
+        ) s ON TRUE
         WHERE i.cluster_id = $1
         ORDER BY i.tv_symbol
         """,
         list_id,
     )
+    rows = [dict(r) for r in items]
+    klasse_dates = [r["klasse_updated"] for r in rows if r["klasse_updated"] is not None]
+    klasse_stand = min(klasse_dates) if klasse_dates else None
 
     return templates.TemplateResponse(
         request, "portfolio_lists.html",
         {
             "all_lists": all_lists,
-            "items": [dict(r) for r in items],
+            "items": rows,
             "active_list": active_list,
             "imported": imported,
             "missing": missing,
+            "klasse_stand": klasse_stand,
         },
     )
 
@@ -132,3 +142,11 @@ async def delete_portfolio_list_item(list_id: int, tv_symbol: str = Form(...)):
     pool = await db.get_pool()
     await delete_item(pool, list_id, tv_symbol)
     return RedirectResponse(f"/portfolio-listen/{list_id}", status_code=303)
+
+
+@router.post("/portfolio-listen/{list_id}/reclassify")
+async def reclassify_portfolio_list(list_id: int):
+    pool = await db.get_pool()
+    rows = await pool.fetch("SELECT tv_symbol FROM cluster_items WHERE cluster_id = $1", list_id)
+    trigger_reclassify([r["tv_symbol"] for r in rows])
+    return RedirectResponse(f"/portfolio-listen/{list_id}?reclassify=1", status_code=303)

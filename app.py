@@ -22,6 +22,7 @@ _PIPELINE_TASKS = {
     "iv":     ("IV-Daten (IBKR Options)",      ["src/run_w3.py", "--ibkr-only"]),
     "scores": ("W3-Scores",                    ["src/run_w3.py", "--skip-update", "--skip-notify"]),
     "charts": ("Charts neu generieren",        ["src/make_charts.py"]),
+    "classify": ("Klasse neu berechnen (alle Ticker)", ["src/determine_class.py"]),
     "full":   ("Alles (EOD + IV + Scores + Charts)", None),  # handled separately
 }
 

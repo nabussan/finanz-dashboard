@@ -9,7 +9,7 @@ import config
 import db
 from routers._cluster_shared import (
     parse_tv_import, upsert_cluster, insert_items,
-    tickers_missing_prices, trigger_ondemand_update,
+    tickers_missing_prices, trigger_ondemand_update, trigger_reclassify,
     delete_item, delete_cluster,
 )
 
@@ -104,10 +104,10 @@ async def watchlist_page(request: Request, wl_id: int,
             ci.tv_symbol,
             ci.ticker,
             ci.added,
-            s.score, s.z_score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse
+            s.score, s.z_score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse, s.klasse_updated
         FROM cluster_items ci
         LEFT JOIN LATERAL (
-            SELECT score, z_score, iv_rank, vrp, ann_return, signal, klasse
+            SELECT score, z_score, iv_rank, vrp, ann_return, signal, klasse, klasse_updated
             FROM signals
             WHERE ticker = ci.tv_symbol
             ORDER BY run_date DESC LIMIT 1
@@ -119,10 +119,14 @@ async def watchlist_page(request: Request, wl_id: int,
     )
 
     rows = []
+    klasse_dates = []
     for r in items:
         row = dict(r)
         row["chart_url"] = f"/portfolio-charts#{_anchor(row['tv_symbol'])}"
         rows.append(row)
+        if row["klasse_updated"] is not None:
+            klasse_dates.append(row["klasse_updated"])
+    klasse_stand = min(klasse_dates) if klasse_dates else None
 
     return templates.TemplateResponse(
         request, "watchlist.html",
@@ -133,6 +137,7 @@ async def watchlist_page(request: Request, wl_id: int,
             "imported": imported,
             "missing": missing,
             "charts_available": config.RSM_PORTFOLIO_HTML.exists(),
+            "klasse_stand": klasse_stand,
         },
     )
 
@@ -169,3 +174,11 @@ async def delete_watchlist_item(wl_id: int, tv_symbol: str = Form(...)):
     pool = await db.get_pool()
     await delete_item(pool, wl_id, tv_symbol)
     return RedirectResponse(f"/watchlists/{wl_id}", status_code=303)
+
+
+@router.post("/watchlists/{wl_id}/reclassify")
+async def reclassify_watchlist(wl_id: int):
+    pool = await db.get_pool()
+    rows = await pool.fetch("SELECT tv_symbol FROM cluster_items WHERE cluster_id = $1", wl_id)
+    trigger_reclassify([r["tv_symbol"] for r in rows])
+    return RedirectResponse(f"/watchlists/{wl_id}?reclassify=1", status_code=303)

@@ -69,6 +69,24 @@ def trigger_ondemand_update() -> None:
     )
 
 
+def trigger_reclassify(tv_symbols: list[str]) -> None:
+    """Ad-hoc Klasse-Neuberechnung fuer die gegebenen Ticker (fire-and-forget).
+
+    Reiner Lokal-Backtest gegen vorhandene Kursdaten in rsm-live/data/rsm_data.db,
+    kein IBKR/Netzwerk-Zugriff -- anders als trigger_ondemand_update() also ohne
+    eigenes flock-Lock noetig (determine_class.py haelt keine IBKR-Verbindung).
+    """
+    if not tv_symbols:
+        return
+    subprocess.Popen(
+        ["/opt/rsm-live/.venv/bin/python3", "src/determine_class.py",
+         "--ticker", *tv_symbols],
+        cwd="/opt/rsm-live",
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
 async def delete_item(pool, cluster_id: int, tv_symbol: str) -> None:
     await pool.execute(
         "DELETE FROM cluster_items WHERE cluster_id = $1 AND tv_symbol = $2",

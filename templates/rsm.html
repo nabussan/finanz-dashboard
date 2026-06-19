@@ -11,13 +11,22 @@
     <button class="rsm-filter-btn rsm-filter-btn--wait" data-filter="wait">WAIT</button>
   </nav>
   {% if last_run %}<span class="rsm-run-date">Run: {{ last_run }}</span>{% endif %}
+  {% if klasse_stand %}<span class="rsm-run-date">Klasse: {{ klasse_stand.strftime('%d.%m.%Y') }}</span>{% endif %}
 </div>
 
 <div class="rsm-split">
 
-  {# ── Chart-Panel (links) ──────────────────────────────── #}
+  {# ── Chart-Panel (links) — W / D / TV ────────────────────────── #}
   <div class="chart-panel">
-    <iframe id="chart-frame" src="/portfolio-charts" title="RSM Chart"></iframe>
+    <div class="chart-controls">
+      <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
+      <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
+      <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
+    </div>
+    <div class="chart-body">
+      <iframe id="chart-frame" src="/portfolio-charts" title="RSM Chart"></iframe>
+      <div id="tv-chart"></div>
+    </div>
   </div>
 
   {# ── Signal-Panel (rechts) ────────────────────────────── #}
@@ -48,6 +57,7 @@
       <tr class="signal-row signal-row--{{ sig }} {% if sig in ('buy','sell','hold') %}rsm-{{ sig }}{% endif %}"
           data-signal="{{ sig }}"
           data-anchor="{{ anchor }}"
+          data-ticker="{{ s.ticker }}"
           onclick="switchToTicker(this)">
         <td class="ticker-cell">{{ sym }}</td>
         <td><span class="badge badge--{{ sig }}">{{ s.signal or "—" }}</span></td>
@@ -73,11 +83,23 @@
 
 </div>
 
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script>
 (function () {
+  let _mode          = 'W';
+  let _currentRow    = null;
+
   const iframe = document.getElementById('chart-frame');
-  let chartLoaded = false;
-  let pendingAnchor = null;
+  const tvDiv  = document.getElementById('tv-chart');
+
+  const FRAME_URL = {
+    'W': '/portfolio-charts',
+    'D': '/portfolio-charts-daily',
+  };
+
+  let _frameBaseUrl  = '/portfolio-charts';
+  let _frameReady    = false;
+  let _pendingAnchor = null;
 
   function callInFrame(anchor) {
     try {
@@ -90,15 +112,15 @@
         cw.location.hash = anchor;
       }
     } catch (e) {
-      if (iframe) iframe.src = '/portfolio-charts#' + anchor;
+      if (iframe) iframe.src = _frameBaseUrl + '#' + anchor;
     }
   }
 
   if (iframe) {
     iframe.addEventListener('load', function () {
-      chartLoaded = true;
-      const target = pendingAnchor;
-      pendingAnchor = null;
+      _frameReady = true;
+      const target = _pendingAnchor;
+      _pendingAnchor = null;
       if (target) {
         callInFrame(target);
       } else {
@@ -108,15 +130,73 @@
     });
   }
 
+  // Init: erste Zeile als aktiv vormerken, damit W/D/TV vor dem ersten
+  // Zeilen-Klick schon funktioniert.
+  const firstRow = document.querySelector('.signal-row[data-anchor]');
+  if (firstRow) {
+    _currentRow    = firstRow;
+    _pendingAnchor = firstRow.dataset.anchor;
+  }
+
+  function loadChart(row, mode) {
+    mode = mode || _mode;
+    const tvSymbol = row.dataset.ticker;
+    const anchor   = row.dataset.anchor;
+    _currentRow = row;
+
+    if (mode === 'TV') {
+      if (iframe) iframe.style.display = 'none';
+      if (tvDiv) {
+        tvDiv.style.display = 'block';
+        tvDiv.innerHTML = '';
+        new TradingView.widget({
+          container_id:        'tv-chart',
+          symbol:              tvSymbol,
+          interval:            'W',
+          timezone:            'Europe/Berlin',
+          theme:               'dark',
+          style:               '1',
+          locale:              'de_DE',
+          width:               '100%',
+          height:              '100%',
+          hide_side_toolbar:   false,
+          allow_symbol_change: true,
+          save_image:          false,
+        });
+      }
+      return;
+    }
+
+    if (tvDiv) tvDiv.style.display = 'none';
+    if (iframe) iframe.style.display = 'block';
+
+    const url = FRAME_URL[mode] || FRAME_URL['W'];
+    if (url === _frameBaseUrl && _frameReady) {
+      callInFrame(anchor);
+    } else {
+      _frameBaseUrl  = url;
+      _frameReady    = false;
+      _pendingAnchor = anchor;
+      if (iframe) iframe.src = url + '#' + anchor;
+    }
+  }
+
+  window.setChartMode = function (mode, btn) {
+    _mode = mode;
+    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
+      b.classList.remove('chart-mode-btn--active');
+    });
+    if (btn) btn.classList.add('chart-mode-btn--active');
+    if (_currentRow) loadChart(_currentRow, mode);
+  };
+
   window.switchToTicker = function (row) {
     document.querySelectorAll('.signal-row').forEach(function (r) {
       r.classList.remove('signal-row--active');
     });
     row.classList.add('signal-row--active');
-    const anchor = row.dataset.anchor;
-    if (!anchor) return;
-    if (chartLoaded) callInFrame(anchor);
-    else pendingAnchor = anchor;
+    if (!row.dataset.anchor) return;
+    loadChart(row);
   };
 
   document.querySelectorAll('.rsm-filter-btn').forEach(function (btn) {

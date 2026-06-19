@@ -31,6 +31,7 @@
       <input type="text" name="name" placeholder="Neue Watchlist…" required class="wl-name-input" style="width:140px;">
       <button type="submit" class="btn-secondary">+ Anlegen</button>
     </form>
+    {% if klasse_stand %}<span class="rsm-run-date">Klasse: {{ klasse_stand.strftime('%d.%m.%Y') }}</span>{% endif %}
   </div>
 </div>
 
@@ -130,6 +131,16 @@
                     style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
           </form>
         </details>
+
+        {% if items %}
+        <form method="post" action="/watchlists/{{ active_wl.id }}/reclassify">
+          <button type="submit" class="btn-secondary"
+                  style="font-size:11px; padding:4px 10px; width:100%; margin-bottom:6px;"
+                  title="OOS-Backtest neu laufen lassen, Ergebnis nach ~1 Min sichtbar">
+            ↻ Klasse neu berechnen
+          </button>
+        </form>
+        {% endif %}
 
         <form method="post" action="/watchlists/{{ active_wl.id }}/delete"
               onsubmit="return confirm('Watchlist »{{ active_wl.name }}« und alle {{ items|length }} Einträge löschen?')">
