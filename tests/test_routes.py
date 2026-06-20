@@ -73,13 +73,16 @@ async def test_micro_iframe_structure(client):
 
 
 async def test_micro_chart_controls(client):
-    """Micro-Seite muss setChartMode (W/D-Umschalter, vom iframe-Panel-Titel
-    aus rsm-live aufgerufen) bereitstellen. TV ist kein eingebetteter Modus
-    mehr, sondern ein externer Link im iframe-Inhalt (s. make_charts.py)."""
+    """Micro-Seite muss die äußere W/D/TV-Toggle-Zeile + TV Overview/Chart-
+    Links haben (TV bleibt sichtbar, auch wenn der iframe für den
+    eingebetteten TradingView-Chart versteckt wird)."""
     r = await client.get("/micro")
     assert r.status_code == 200
-    assert 'window.setChartMode' in r.text
-    assert "'D': '/portfolio-charts-daily'" in r.text
+    assert 'chart-mode-btn' in r.text
+    assert 'id="tv-overview-link"' in r.text
+    assert 'id="tv-chart-link"' in r.text
+    for label in ('W', 'D', 'TV', 'TV Overview', 'Chart'):
+        assert label in r.text
 
 
 async def test_micro_table_columns(client):

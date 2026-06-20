@@ -57,10 +57,18 @@
 {# ── Split-Pane ──────────────────────────────────────────────────── #}
 <div class="wl-split">
 
-  {# ── Chart-Panel (links) — W / D, TV-Link im iframe-Panel-Titel ── #}
+  {# ── Chart-Panel (links) — W / D / TV / TV Overview / Chart ─────── #}
   <div class="chart-panel">
+    <div class="chart-controls">
+      <button class="chart-mode-btn chart-mode-btn--active" onclick="setChartMode('W', this)">W</button>
+      <button class="chart-mode-btn" onclick="setChartMode('D', this)">D</button>
+      <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
+      <a class="chart-mode-btn chart-mode-link" id="tv-overview-link" href="#" target="_blank" rel="noopener">TV Overview</a>
+      <a class="chart-mode-btn chart-mode-link" id="tv-chart-link" href="#" target="_blank" rel="noopener">Chart</a>
+    </div>
     <div class="chart-body">
       <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
+      <div id="tv-chart"></div>
     </div>
   </div>
 
@@ -156,12 +164,14 @@
 </div>{# /wl-split #}
 {% endif %}
 
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script>
 (function () {
   var _mode          = 'W';
   var _currentSymbol = null;
 
   var iframe = document.getElementById('chart-frame');
+  var tvDiv  = document.getElementById('tv-chart');
 
   var FRAME_URL = {
     'W': '/portfolio-charts',
@@ -174,6 +184,13 @@
 
   function _anchor(tvSymbol) {
     return 'pnl-' + tvSymbol.replace(/[^A-Za-z0-9]/g, '_');
+  }
+
+  function updateExtLinks(tvSymbol) {
+    var tvOverview = document.getElementById('tv-overview-link');
+    var tvChart    = document.getElementById('tv-chart-link');
+    if (tvOverview) tvOverview.href = 'https://www.tradingview.com/symbols/' + tvSymbol.replace(':', '-') + '/';
+    if (tvChart)    tvChart.href    = 'https://www.tradingview.com/chart/9U3N6gv0/?symbol=' + encodeURIComponent(tvSymbol);
   }
 
   function _callInFrame(anchor) {
@@ -203,6 +220,33 @@
   function loadChart(tvSymbol, mode) {
     mode = mode || _mode;
     _currentSymbol = tvSymbol;
+    updateExtLinks(tvSymbol);
+
+    if (mode === 'TV') {
+      if (iframe) iframe.style.display = 'none';
+      if (tvDiv) {
+        tvDiv.style.display = 'block';
+        tvDiv.innerHTML = '';
+        new TradingView.widget({
+          container_id:        'tv-chart',
+          symbol:              tvSymbol,
+          interval:            'W',
+          timezone:            'Europe/Berlin',
+          theme:               'dark',
+          style:               '1',
+          locale:              'de_DE',
+          width:               '100%',
+          height:              '100%',
+          hide_side_toolbar:   false,
+          allow_symbol_change: true,
+          save_image:          false,
+        });
+      }
+      return;
+    }
+
+    if (tvDiv) tvDiv.style.display = 'none';
+    if (iframe) iframe.style.display = 'block';
 
     var url    = FRAME_URL[mode] || FRAME_URL['W'];
     var anchor = _anchor(tvSymbol);
@@ -217,8 +261,12 @@
     }
   }
 
-  window.setChartMode = function (mode) {
+  window.setChartMode = function (mode, btn) {
     _mode = mode;
+    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
+      b.classList.remove('chart-mode-btn--active');
+    });
+    if (btn) btn.classList.add('chart-mode-btn--active');
     if (_currentSymbol) loadChart(_currentSymbol, mode);
   };
 
@@ -227,6 +275,7 @@
     _currentSymbol = firstItem.dataset.tvSymbol;
     _frameBaseUrl  = FRAME_URL['W'];
     _pendingAnchor = _anchor(_currentSymbol);
+    updateExtLinks(_currentSymbol);
   }
 
   window.rowClick = function (el) {
