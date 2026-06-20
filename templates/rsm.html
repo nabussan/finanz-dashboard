@@ -16,11 +16,10 @@
 
 <div class="rsm-split">
 
-  {# ── Chart-Panel (links) — W / D / TV ────────────────────────── #}
+  {# ── Chart-Panel (links) — W / D, TV-Link im iframe-Panel-Titel ─ #}
   <div class="chart-panel">
     <div class="chart-body">
       <iframe id="chart-frame" src="/portfolio-charts" title="RSM Chart"></iframe>
-      <div id="tv-chart"></div>
     </div>
   </div>
 
@@ -78,14 +77,12 @@
 
 </div>
 
-<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <script>
 (function () {
   let _mode          = 'W';
   let _currentRow    = null;
 
   const iframe = document.getElementById('chart-frame');
-  const tvDiv  = document.getElementById('tv-chart');
 
   const FRAME_URL = {
     'W': '/portfolio-charts',
@@ -125,7 +122,7 @@
     });
   }
 
-  // Init: erste Zeile als aktiv vormerken, damit W/D/TV vor dem ersten
+  // Init: erste Zeile als aktiv vormerken, damit W/D vor dem ersten
   // Zeilen-Klick schon funktioniert.
   const firstRow = document.querySelector('.signal-row[data-anchor]');
   if (firstRow) {
@@ -135,35 +132,8 @@
 
   function loadChart(row, mode) {
     mode = mode || _mode;
-    const tvSymbol = row.dataset.ticker;
-    const anchor   = row.dataset.anchor;
+    const anchor = row.dataset.anchor;
     _currentRow = row;
-
-    if (mode === 'TV') {
-      if (iframe) iframe.style.display = 'none';
-      if (tvDiv) {
-        tvDiv.style.display = 'block';
-        tvDiv.innerHTML = '';
-        new TradingView.widget({
-          container_id:        'tv-chart',
-          symbol:              tvSymbol,
-          interval:            'W',
-          timezone:            'Europe/Berlin',
-          theme:               'dark',
-          style:               '1',
-          locale:              'de_DE',
-          width:               '100%',
-          height:              '100%',
-          hide_side_toolbar:   false,
-          allow_symbol_change: true,
-          save_image:          false,
-        });
-      }
-      return;
-    }
-
-    if (tvDiv) tvDiv.style.display = 'none';
-    if (iframe) iframe.style.display = 'block';
 
     const url = FRAME_URL[mode] || FRAME_URL['W'];
     if (url === _frameBaseUrl && _frameReady) {
@@ -176,12 +146,8 @@
     }
   }
 
-  window.setChartMode = function (mode, btn) {
+  window.setChartMode = function (mode) {
     _mode = mode;
-    document.querySelectorAll('.chart-mode-btn').forEach(function (b) {
-      b.classList.remove('chart-mode-btn--active');
-    });
-    if (btn) btn.classList.add('chart-mode-btn--active');
     if (_currentRow) loadChart(_currentRow, mode);
   };
 

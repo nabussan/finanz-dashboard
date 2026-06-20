@@ -73,12 +73,13 @@ async def test_micro_iframe_structure(client):
 
 
 async def test_micro_chart_controls(client):
-    """Micro-Seite muss W / D / TV Chart-Umschalter haben."""
+    """Micro-Seite muss setChartMode (W/D-Umschalter, vom iframe-Panel-Titel
+    aus rsm-live aufgerufen) bereitstellen. TV ist kein eingebetteter Modus
+    mehr, sondern ein externer Link im iframe-Inhalt (s. make_charts.py)."""
     r = await client.get("/micro")
     assert r.status_code == 200
-    assert 'chart-mode-btn' in r.text
-    for label in ('W', 'D', 'TV'):
-        assert label in r.text
+    assert 'window.setChartMode' in r.text
+    assert "'D': '/portfolio-charts-daily'" in r.text
 
 
 async def test_micro_table_columns(client):

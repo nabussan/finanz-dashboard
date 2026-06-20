@@ -972,29 +972,5 @@ td a:hover { text-decoration: underline; }
 
 .micro-negative td { opacity: .55; }
 
-.chart-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.chart-mode-btn {
-  padding: 3px 10px;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  text-decoration: none;
-  line-height: 1.6;
-}
-.chart-mode-btn:hover { color: var(--fg); border-color: var(--fg); }
-.chart-mode-btn--active { color: var(--blue); border-color: var(--blue); background: rgba(79,142,247,.1); }
 .chart-panel { display: flex; flex-direction: column; }
 .chart-body { flex: 1; min-height: 0; position: relative; }
-#tv-chart { position: absolute; inset: 0; display: none; }
