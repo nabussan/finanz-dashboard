@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import disco, rsm, portfolio, micro, watchlist, portfolio_lists
+from routers import disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
@@ -78,6 +78,7 @@ app.include_router(disco.router)
 app.include_router(rsm.router)
 app.include_router(portfolio.router)
 app.include_router(micro.router)
+app.include_router(micro_lists.router)
 app.include_router(watchlist.router)
 app.include_router(portfolio_lists.router)
 

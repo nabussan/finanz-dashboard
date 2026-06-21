@@ -4,13 +4,18 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 import config
 import db
 from routers.micro_score import score_tickers, write_to_db_sync
+from routers._cluster_shared import (
+    classify_ibkr_coverage, upsert_cluster, insert_items, trigger_ondemand_update,
+)
+
+_UNTRACKED_LIST_NAME = "Manuell ergänzt"
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -21,7 +26,7 @@ _rank_status: dict = {"status": "idle", "last_run": None}
 
 async def _load_clusters(pool) -> list[dict]:
     rows = await pool.fetch(
-        "SELECT id, name FROM clusters WHERE kind = 'watchlist' ORDER BY name"
+        "SELECT id, name, kind FROM clusters WHERE kind IN ('watchlist', 'micro_list') ORDER BY kind, name"
     )
     return [dict(r) for r in rows]
 
@@ -46,12 +51,27 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
     sub_cols_f  = ", f.score_trends, f.score_cashflow, f.score_profitability, f.score_valuation, f.score_liquidity, f.score_solvency" if sub else ""
     sub_cols_bare = ", score_trends, score_cashflow, score_profitability, score_valuation, score_liquidity, score_solvency" if sub else ""
 
+    # has_prices: gibt es fuer dieses Ticker/Exchange-Paar bereits eine IBKR-Kurshistorie
+    # (rsm_prices)? Fundamentaldaten (TV-Scrape) und Kurshistorie (IBKR via rsm-live) sind
+    # zwei getrennte Pipelines -- ein Ticker kann gescored sein, ohne je getrackt worden zu
+    # sein (z.B. NRT: frueher echte Position, dann verkauft, nie in eine Watchlist/Cluster
+    # aufgenommen). has_prices steuert den "Zu Liste hinzufuegen"-Hinweis im Chart-Panel.
+    has_prices_expr = """
+        EXISTS (
+            SELECT 1 FROM rsm_prices rp
+            WHERE rp.ticker = CASE WHEN {alias}exchange IS NOT NULL AND {alias}exchange <> ''
+                                    THEN {alias}exchange || ':' || {alias}ticker
+                                    ELSE {alias}ticker END
+        ) AS has_prices
+    """
+
     if cluster_id is not None:
         rows = await pool.fetch(
             f"""
             SELECT f.ticker, f.updated, f.source, f.exchange,
                    f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.roic, f.revenue_growth,
-                   f.ranking_score, f.ranking_pos{sub_cols_f}
+                   f.ranking_score, f.ranking_pos{sub_cols_f},
+                   {has_prices_expr.format(alias='f.')}
             FROM fundamentals f
             JOIN cluster_items ci
               ON upper(split_part(ci.tv_symbol, ':', 2)) = upper(f.ticker)
@@ -67,7 +87,8 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
             f"""
             SELECT ticker, updated, source, exchange,
                    pe, ev_ebitda, roe, debt_equity, roic, revenue_growth,
-                   ranking_score, ranking_pos{sub_cols_bare}
+                   ranking_score, ranking_pos{sub_cols_bare},
+                   {has_prices_expr.format(alias='')}
             FROM fundamentals
             WHERE updated = (SELECT MAX(updated) FROM fundamentals)
             ORDER BY ranking_score DESC NULLS LAST
@@ -211,6 +232,21 @@ def _universe_score_task():
 @router.get("/micro/rank/status")
 async def micro_rank_status():
     return JSONResponse(_rank_status)
+
+
+@router.post("/micro/track")
+async def micro_track(tv_symbol: str = Form(...)):
+    """Nimmt einen Fundamentaldaten-only-Ticker (kein has_prices) in eine micro-Liste auf,
+    damit rsm-live ihn ueber collect_db_tickers() automatisch fuer den naechsten
+    OHLCV-Fetch mitnimmt. Landet in einer gemeinsamen 'Manuell ergänzt'-Liste statt
+    eine konkrete Liste abzufragen -- haelt den Button im Chart-Panel klick-und-fertig."""
+    pool = await db.get_pool()
+    list_id = await upsert_cluster(pool, _UNTRACKED_LIST_NAME, "micro_list")
+    status = classify_ibkr_coverage(tv_symbol)
+    await insert_items(pool, list_id, [tv_symbol], [status])
+    if status == "resolved":
+        trigger_ondemand_update()
+    return JSONResponse({"tv_symbol": tv_symbol, "ibkr_status": status, "list_id": list_id})
 
 
 _RSM_DB: Path | None = None

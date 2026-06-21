@@ -254,6 +254,73 @@ async def test_watchlist_upload(client):
     await client.post(f"/watchlists/{wl_id}/delete")
 
 
+# ── Micro-Listen ──────────────────────────────────────────────────────────────
+
+
+def test_classify_ibkr_coverage():
+    """Format- + Exchange-Check, kein Live-IBKR-Call."""
+    from routers._cluster_shared import classify_ibkr_coverage
+    assert classify_ibkr_coverage("NYSE:AAPL") == "resolved"
+    assert classify_ibkr_coverage("LSE:RMV") == "resolved"
+    assert classify_ibkr_coverage("XXXX:FOO") == "unresolved"   # unbekannte Exchange
+    assert classify_ibkr_coverage("RMV_LSE") == "unresolved"    # kein EXCHANGE:TICKER-Format
+
+
+async def test_micro_listen_page(client):
+    r = await client.get("/micro-listen")
+    assert r.status_code == 200
+
+
+async def test_micro_listen_upload_resolved_and_unresolved(client):
+    """Upload mit gemischtem Format: gueltige + ungueltige Eintraege werden getrennt,
+    nicht stillschweigend verworfen (Lehre aus dem RMV_LSE-Bug)."""
+    r = await client.post(
+        "/micro-listen",
+        data={"name": "_test_micro_listen_"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+    list_id = int(r.headers["location"].rsplit("/", 1)[-1])
+
+    r = await client.post(
+        f"/micro-listen/{list_id}/import",
+        data={"content": "NYSE:AAPL,RMV_LSE,XXXX:FOO"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert "resolved" in r.text
+    assert "unresolved" in r.text
+    assert "AAPL" in r.text
+    assert "RMV_LSE" in r.text  # ungueltiger Eintrag bleibt sichtbar, nicht verworfen
+
+    await client.post(f"/micro-listen/{list_id}/delete")
+
+
+async def test_micro_listen_delete_keeps_fundamentals(client):
+    """Cluster loeschen entfernt nur die Gruppierung, nie die zugrunde liegenden
+    Daten in fundamentals/rsm_prices (Nutzer-Anforderung)."""
+    import db
+    pool = await db.get_pool()
+
+    r = await client.post(
+        "/micro-listen",
+        data={"name": "_test_micro_delete_"},
+        follow_redirects=False,
+    )
+    list_id = int(r.headers["location"].rsplit("/", 1)[-1])
+    await client.post(f"/micro-listen/{list_id}/import", data={"content": "NYSE:AAPL"})
+
+    before = await pool.fetchval("SELECT COUNT(*) FROM fundamentals WHERE ticker = 'AAPL'")
+
+    await client.post(f"/micro-listen/{list_id}/delete")
+
+    after = await pool.fetchval("SELECT COUNT(*) FROM fundamentals WHERE ticker = 'AAPL'")
+    assert before == after
+
+    r = await client.get(f"/micro-listen/{list_id}", follow_redirects=False)
+    assert r.status_code in (302, 404)
+
+
 # ── Admin / Pipeline Trigger ─────────────────────────────────────────────────
 
 

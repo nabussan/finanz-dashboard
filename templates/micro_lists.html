@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block body_class %}micro-lists-page{% endblock %}
+{% block title %}Micro-Listen{% endblock %}
+{% block content %}
+
+{# ── Header: Listen-Tabs + Toolbar ─────────────────────────────── #}
+<div class="wl-header">
+  <nav class="tab-nav">
+    {% for ml in all_lists %}
+    <span class="tab-item">
+      <a href="/micro-listen/{{ ml.id }}"
+         class="tab-link{% if active_list and active_list.id == ml.id %} tab-link--active{% endif %}">
+        {{ ml.name }}
+      </a>
+      <form method="post" action="/micro-listen/{{ ml.id }}/delete" class="tab-delete-form"
+            onsubmit="return confirm('Liste »{{ ml.name }}« löschen? Fundamentaldaten und Kurshistorie bleiben erhalten, nur die Gruppierung wird entfernt.')">
+        <button type="submit" class="tab-delete-btn" title="Liste löschen (Daten bleiben in der DB)">×</button>
+      </form>
+    </span>
+    {% endfor %}
+  </nav>
+
+  <div class="wl-toolbar">
+    <form method="post" action="/micro-listen/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title="TV-Format .txt hochladen — Dateiname = Listen-Name">
+        ⊕ Datei
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+      </label>
+    </form>
+    <form method="post" action="/micro-listen" class="wl-new-form">
+      <input type="text" name="name" placeholder="Neue Liste (z.B. US, Europa, Asien)…" required class="wl-name-input" style="width:220px;">
+      <button type="submit" class="btn-secondary">+ Anlegen</button>
+    </form>
+  </div>
+</div>
+
+{# ── Import-Notice (Flash) ─────────────────────────────────────── #}
+{% if imported_resolved or imported_unresolved %}
+<div class="wl-notice{% if imported_unresolved %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
+  {{ imported_resolved }} Ticker IBKR-aufgelöst (Kursdaten werden geholt).
+  {% if imported_unresolved %}
+    <strong>{{ imported_unresolved }} zur manuellen Prüfung</strong> — unbekannte Exchange oder falsches Format (kein <code>EXCHANGE:TICKER</code>).
+  {% endif %}
+</div>
+{% endif %}
+
+{% if active_list is none %}
+  <div class="wl-empty">Noch keine Micro-Listen — Datei hochladen oder oben anlegen.</div>
+
+{% else %}
+<div style="padding: 12px;">
+
+  <h3 style="font-size:13px; color:var(--text); margin: 0 0 8px;">
+    IBKR-getrackt <span class="badge badge--buy">{{ resolved_items|length }}</span>
+  </h3>
+  {% if not resolved_items %}
+    <div style="color:var(--muted); font-size:12px; margin-bottom:16px;">Keine.</div>
+  {% else %}
+  <div style="margin-bottom:16px;">
+    {% for i in resolved_items %}
+    <form method="post" action="/micro-listen/{{ active_list.id }}/delete-item"
+          class="inline-form" style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+      <input type="hidden" name="tv_symbol" value="{{ i.tv_symbol }}">
+      <span class="badge badge--buy" style="min-width:60px; text-align:center;">resolved</span>
+      <span style="font-size:12px; flex:1;">{{ i.tv_symbol }}</span>
+      <button type="submit" class="btn-delete" title="Entfernen">×</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h3 style="font-size:13px; color:var(--text); margin: 0 0 8px;">
+    Manuelle Prüfung <span class="badge badge--warn">{{ unresolved_items|length }}</span>
+  </h3>
+  {% if not unresolved_items %}
+    <div style="color:var(--muted); font-size:12px; margin-bottom:16px;">Keine.</div>
+  {% else %}
+  <div style="margin-bottom:16px;">
+    {% for i in unresolved_items %}
+    <form method="post" action="/micro-listen/{{ active_list.id }}/delete-item"
+          class="inline-form" style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+      <input type="hidden" name="tv_symbol" value="{{ i.tv_symbol }}">
+      <span class="badge badge--warn" style="min-width:60px; text-align:center;">unresolved</span>
+      <span style="font-size:12px; flex:1;">{{ i.tv_symbol }}</span>
+      <button type="submit" class="btn-delete" title="Entfernen">×</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <details>
+    <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Importieren…</summary>
+    <form method="post" action="/micro-listen/{{ active_list.id }}/import" style="margin-top:6px; max-width:480px;">
+      <textarea name="content" rows="4"
+                style="width:100%; background:var(--bg); color:var(--text);
+                       border:1px solid var(--border); border-radius:4px;
+                       padding:4px; font-size:11px; font-family:monospace;"
+                placeholder="LSE:RMV,NYSE:NRT,XETR:SAP"></textarea>
+      <button type="submit" class="btn-primary"
+              style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
+    </form>
+  </details>
+
+  <form method="post" action="/micro-listen/{{ active_list.id }}/delete"
+        style="margin-top:16px; max-width:240px;"
+        onsubmit="return confirm('Liste »{{ active_list.name }}« löschen? Fundamentaldaten und Kurshistorie bleiben erhalten.')">
+    <button type="submit" class="btn-danger" style="font-size:11px; padding:4px 10px; width:100%;">
+      Liste löschen (Daten bleiben in DB)
+    </button>
+  </form>
+
+</div>
+{% endif %}
+
+{% endblock %}

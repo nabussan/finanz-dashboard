@@ -10,6 +10,31 @@ import subprocess
 
 _SYMBOL_RE = re.compile(r'^[A-Z0-9]+:[A-Z0-9.]+$')
 
+# Exchanges, die nachweislich ohne Sonderbehandlung ueber IBKR aufloesbar sind --
+# Vereinigung aus rsm-live/lib/ibkr_fetcher.py:_TV_TO_IBKR_EXCH (kuratierte Eintraege)
+# und den am 2026-06-18 gegen das echte Gateway verifizierten Passthrough-Boersen
+# (siehe rsm_live_project-Memory "Exchange-Mapping fuer nicht-US-Boersen vervollstaendigt").
+# Manuell synchron halten -- kein Cross-Repo-Import zwischen finanz-dashboard und rsm-live.
+_KNOWN_IBKR_EXCHANGES = {
+    "NYSE", "NASDAQ", "AMEX", "ARCA",
+    "XETR", "TSX", "TSXV", "HKEX", "OTC",
+    "LSE", "EURONEXT", "ASX", "SIX", "OMX", "KRX",
+}
+
+
+def classify_ibkr_coverage(tv_symbol: str) -> str:
+    """'resolved' | 'unresolved' -- Format- + kuratierter Exchange-Check, kein Live-IBKR-Call.
+
+    Bewusst kein reqContractDetails()-Aufruf beim Upload (keine Gateway-Abhaengigkeit,
+    keine Latenz bei grossen Listen). Falsch-positive 'resolved'-Eintraege (Exchange
+    bekannt, aber der Ticker existiert dort nicht) fallen beim naechsten eod_update.py-
+    Lauf als Fetch-Fehler auf.
+    """
+    if not _SYMBOL_RE.match(tv_symbol):
+        return "unresolved"
+    exch = tv_symbol.split(":", 1)[0]
+    return "resolved" if exch in _KNOWN_IBKR_EXCHANGES else "unresolved"
+
 
 def parse_tv_import(content: str) -> list[str]:
     """Parse comma- or newline-separated TV symbols (EXCHANGE:TICKER)."""
@@ -21,6 +46,20 @@ def parse_tv_import(content: str) -> list[str]:
         if ':' in part and _SYMBOL_RE.match(part):
             symbols.append(part)
     return list(dict.fromkeys(symbols))  # deduplicate, preserve order
+
+
+def parse_micro_import(content: str) -> list[str]:
+    """Wie parse_tv_import(), behaelt aber auch fehlerhafte Eintraege (kein Doppelpunkt,
+    falsches Format) statt sie stillschweigend zu verwerfen -- micro-Listen sollen
+    Format-Fehler sichtbar machen (Lehre aus dem RMV_LSE-Bug: ein stillschweigend
+    verworfener oder durchgerutschter Ticker faellt sonst erst beim Chart-Klick auf)."""
+    parts = []
+    for part in re.split(r'[,\n\r]+', content):
+        part = part.strip()
+        if not part or part.startswith('#'):
+            continue
+        parts.append(part)
+    return list(dict.fromkeys(parts))  # deduplicate, preserve order
 
 
 async def upsert_cluster(pool, name: str, kind: str) -> int:
@@ -35,13 +74,23 @@ async def upsert_cluster(pool, name: str, kind: str) -> int:
     )
 
 
-async def insert_items(pool, cluster_id: int, symbols: list[str]) -> None:
+async def insert_items(pool, cluster_id: int, symbols: list[str], statuses: list[str] | None = None) -> None:
+    """statuses: optionale Liste (gleiche Laenge wie symbols) mit ibkr_status je Ticker
+    (z.B. 'resolved'/'unresolved', siehe classify_ibkr_coverage()) -- nur fuer micro-Listen
+    genutzt, watchlist.py/portfolio_lists.py rufen ohne statuses auf (unveraendertes Verhalten)."""
     if not symbols:
         return
-    await pool.executemany(
-        "INSERT INTO cluster_items (cluster_id, tv_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        [(cluster_id, sym) for sym in symbols],
-    )
+    if statuses is None:
+        await pool.executemany(
+            "INSERT INTO cluster_items (cluster_id, tv_symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [(cluster_id, sym) for sym in symbols],
+        )
+    else:
+        await pool.executemany(
+            "INSERT INTO cluster_items (cluster_id, tv_symbol, ibkr_status) VALUES ($1, $2, $3) "
+            "ON CONFLICT (cluster_id, tv_symbol) DO UPDATE SET ibkr_status = EXCLUDED.ibkr_status",
+            [(cluster_id, sym, st) for sym, st in zip(symbols, statuses)],
+        )
 
 
 async def tickers_missing_prices(pool, cluster_id: int) -> list[str]:

@@ -6,7 +6,10 @@
 {# ── Header: Cluster-Tabs + Ranking-Button ────────────────────────────────── #}
 <div class="rsm-header micro-header">
   <nav class="rsm-filter-nav">
-    <a href="/micro" class="rsm-filter-btn rsm-filter-btn--active">Alle</a>
+    <a href="/micro" class="rsm-filter-btn{% if not active_cluster_id %} rsm-filter-btn--active{% endif %}">Alle</a>
+    {% for c in clusters %}
+    <a href="/micro?cluster_id={{ c.id }}" class="rsm-filter-btn{% if active_cluster_id == c.id %} rsm-filter-btn--active{% endif %}">{{ c.name }}</a>
+    {% endfor %}
   </nav>
 
   <form method="post"
@@ -18,7 +21,7 @@
   </form>
 
   {% if scored_at %}
-  <span class="rsm-run-date">Stand: {{ scored_at }}</span>
+  <span class="rsm-run-date" title="Datum des letzten Universe-Ranking-Laufs (MAX(updated) in fundamentals) — nicht das Scrape-Datum jeder einzelnen Kennzahl, das kann je Ticker älter sein.">Stand: {{ scored_at }}</span>
   {% endif %}
 
   {% if source == "json-fallback" %}
@@ -37,6 +40,11 @@
       <button class="chart-mode-btn" onclick="setChartMode('TV', this)">TV</button>
       <a class="chart-mode-btn chart-mode-link" id="tv-overview-link" href="#" target="_blank" rel="noopener">TV Overview</a>
       <a class="chart-mode-btn chart-mode-link" id="tv-chart-link" href="#" target="_blank" rel="noopener">Chart</a>
+    </div>
+    <div id="no-prices-hint" class="wl-notice wl-notice--warn" style="display:none; margin: 0 0 6px;">
+      Keine IBKR-Kursdaten für diesen Ticker (nur Fundamentaldaten vorhanden).
+      <button type="button" class="btn-secondary" id="track-btn" style="margin-left:8px; font-size:11px; padding:2px 8px;"
+              onclick="trackCurrentSymbol()">+ Zu Liste hinzufügen</button>
     </div>
     <div class="chart-body">
       <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
@@ -79,6 +87,7 @@
       <tr class="signal-row{% if is_neg %} micro-negative{% endif %}"
           data-tv-symbol="{{ tv_sym }}"
           data-anchor="{{ chart_anchor }}"
+          data-has-prices="{{ '1' if t.get('has_prices') else '0' }}"
           data-ticker="{{ t.ticker }}"
           data-rank="{{ t.cluster_rank or 9999 }}"
           data-score="{{ t.ranking_score if t.ranking_score is not none else '' }}"
@@ -145,6 +154,31 @@
     if (tvOverview) tvOverview.href = 'https://www.tradingview.com/symbols/' + tvSymbol.replace(':', '-') + '/';
     if (tvChart)    tvChart.href    = 'https://www.tradingview.com/chart/9U3N6gv0/?symbol=' + encodeURIComponent(tvSymbol);
   }
+
+  function updateNoPricesHint(hasPrices) {
+    var hint = document.getElementById('no-prices-hint');
+    if (!hint) return;
+    hint.style.display = hasPrices ? 'none' : 'flex';
+  }
+
+  window.trackCurrentSymbol = function () {
+    if (!_currentSymbol) return;
+    var btn = document.getElementById('track-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird hinzugefügt…'; }
+    var body = new URLSearchParams({ tv_symbol: _currentSymbol });
+    fetch('/micro/track', { method: 'POST', body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (btn) {
+          btn.textContent = d.ibkr_status === 'resolved'
+            ? 'Hinzugefügt — Kurse werden geholt (~1 Min)…'
+            : 'Hinzugefügt — manuelle Prüfung nötig (siehe Micro-Listen)';
+        }
+      })
+      .catch(function () {
+        if (btn) { btn.disabled = false; btn.textContent = '+ Zu Liste hinzufügen'; }
+      });
+  };
 
   function _callInFrame(anchor) {
     try {
@@ -229,6 +263,7 @@
     _pendingAnchor = _anchor(_currentSymbol);
     firstRow.classList.add('signal-row--active');
     updateExtLinks(_currentSymbol);
+    updateNoPricesHint(firstRow.dataset.hasPrices === '1');
   }
 
   window.rowClick = function (row) {
@@ -237,6 +272,7 @@
     });
     row.classList.add('signal-row--active');
     loadChart(row.dataset.tvSymbol);
+    updateNoPricesHint(row.dataset.hasPrices === '1');
   };
 
   // ── Spaltensortierung ─────────────────────────────────────────────────────
