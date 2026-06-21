@@ -54,8 +54,8 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
         SELECT
             p.ticker,
             p.entry_date, p.entry_price, p.qty, p.stop_price, p.broker,
-            r.close      AS current_price,
-            ROUND(((r.close - p.entry_price) / p.entry_price) * 100, 2) AS pnl_pct,
+            COALESCE(lq.price, r.close) AS current_price,
+            ROUND(((COALESCE(lq.price, r.close) - p.entry_price) / p.entry_price) * 100, 2) AS pnl_pct,
             p.updated AT TIME ZONE 'Europe/Berlin' AS updated,
             s.tv_symbol,
             s.score, s.iv_rank, s.vrp, s.ann_return, s.signal, s.klasse, s.klasse_updated
@@ -71,6 +71,11 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
             WHERE SPLIT_PART(ticker, ':', 2) = p.ticker AND interval = '1day'
             ORDER BY date DESC LIMIT 1
         ) r ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT price FROM live_quotes
+            WHERE SPLIT_PART(ticker, ':', 2) = p.ticker
+            LIMIT 1
+        ) lq ON TRUE
         WHERE
             CASE
                 WHEN $1 = 'sonstige' THEN p.broker NOT IN ('ibkr', 'ibkr-h')

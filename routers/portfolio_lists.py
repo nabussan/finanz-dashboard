@@ -65,22 +65,28 @@ async def portfolio_listen_page(request: Request, list_id: int,
         """
         SELECT
             i.tv_symbol,
-            r1.close AS current_price,
-            r1.date  AS last_update,
+            COALESCE(lq.price, eod_latest.close) AS current_price,
+            COALESCE(lq.updated_at::date, eod_latest.date) AS last_update,
             CASE
-                WHEN r2.close IS NOT NULL AND r2.close <> 0
-                THEN ROUND(((r1.close - r2.close) / r2.close) * 100, 2)
+                WHEN lq.price IS NOT NULL AND eod_latest.close IS NOT NULL AND eod_latest.close <> 0
+                    THEN ROUND(((lq.price - eod_latest.close) / eod_latest.close) * 100, 2)
+                WHEN lq.price IS NULL AND r2.close IS NOT NULL AND r2.close <> 0
+                    THEN ROUND(((eod_latest.close - r2.close) / r2.close) * 100, 2)
             END AS change_pct,
             s.klasse_updated
         FROM cluster_items i
         LEFT JOIN LATERAL (
+            SELECT price, updated_at FROM live_quotes
+            WHERE ticker = i.tv_symbol
+        ) lq ON TRUE
+        LEFT JOIN LATERAL (
             SELECT close, date FROM rsm_prices
             WHERE ticker = i.tv_symbol AND interval = '1day'
             ORDER BY date DESC LIMIT 1
-        ) r1 ON TRUE
+        ) eod_latest ON TRUE
         LEFT JOIN LATERAL (
             SELECT close FROM rsm_prices
-            WHERE ticker = i.tv_symbol AND interval = '1day' AND date < r1.date
+            WHERE ticker = i.tv_symbol AND interval = '1day' AND date < eod_latest.date
             ORDER BY date DESC LIMIT 1
         ) r2 ON TRUE
         LEFT JOIN LATERAL (
