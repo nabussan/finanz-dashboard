@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Übersicht — Finanz{% endblock %}
 {% block content %}
+<script>setTimeout(() => { window.location.href = window.location.pathname; }, 45000);</script>
 <h1>Übersicht</h1>
 <div class="cards">
   {% for s in systems %}
