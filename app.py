@@ -162,8 +162,16 @@ def _gateway_status() -> dict:
                 "actions": [check_now], "links": links, "wide": True}
 
     if state.get("status") == "up":
+        actions = [check_now]
+        if config.GATEWAY_STOP_KEY:
+            actions.append({
+                "url": "/admin/gateway/stop", "label": "Gateway stoppen",
+                "hint": "Gibt die IBKR-Session frei (z.B. fuer persoenliche TWS-"
+                        "Anmeldung). Pausiert Kurs-Fetch + Stop-Loss-Alerts bis"
+                        " 'Re-Login starten' wieder gedrueckt wird.",
+            })
         return {"name": name, "status": "green", "label": f"verbunden (zuletzt geprüft: {checked_str})",
-                "url": None, "actions": [check_now], "links": links, "wide": True}
+                "url": None, "actions": actions, "links": links, "wide": True}
 
     actions = []
     if config.GATEWAY_RECONNECT_KEY:
@@ -249,6 +257,24 @@ async def gateway_reconnect():
         return HTMLResponse("Reconnect-Timeout.", status_code=504)
     msg = "Reconnect+ausgeloest" if result.stdout.strip() == "clicked" else "Kein+Session-Konflikt+erkannt"
     return RedirectResponse(f"/?triggered={msg}", status_code=303)
+
+
+@app.post("/admin/gateway/stop")
+async def gateway_stop():
+    """Stoppt den IBKR-Gateway-Prozess sauber (systemctl stop, kein Restart=
+    always-Trigger -- ein expliziter stop ist kein Crash). Gegenstueck zu
+    /admin/gateway/restart: gibt die IBKR-Session frei statt sie zurueckzu-
+    holen, z.B. wenn eine persoenliche TWS-Anmeldung (gleicher IBKR-User) sie
+    braucht. Bis zum naechsten 'Re-Login starten' pausieren Kurs-Fetch und
+    Stop-Loss-Alerts -- bewusst in Kauf genommen, kurzzeitig.
+    """
+    if config.GATEWAY_HOST and config.GATEWAY_STOP_KEY:
+        subprocess.Popen([
+            "ssh", "-i", config.GATEWAY_STOP_KEY,
+            "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10",
+            f"root@{config.GATEWAY_HOST}", "stop",
+        ])
+    return RedirectResponse("/?triggered=Gateway+gestoppt", status_code=303)
 
 
 @app.post("/admin/gateway/check-now")
