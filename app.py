@@ -234,12 +234,20 @@ async def admin_run(task: str):
 
     venv_python = str(RSM_DIR / ".venv" / "bin" / "python3")
 
+    # start_new_session=True loest den Subprozess vom Dashboard-Prozess
+    # (gleiche Cgroup), sonst killt ein systemctl restart finanz-dashboard
+    # (z.B. bei einem Code-Deploy waehrend ein Admin-Lauf aktiv ist) den
+    # Pipeline-Lauf mit -- ohne sauberen Exit, ohne Telegram-Alert, ohne
+    # Spur ausser einem abrupt abreissenden Log (Befund 2026-06-22: ein
+    # Dashboard-Redeploy hat so einen seit 19:20 laufenden vollen W3-Lauf
+    # stillschweigend getoetet). Gleiches Muster wie trigger_ondemand_update()
+    # in routers/_cluster_shared.py.
     if task == "full":
         script = str(RSM_DIR / "infra" / "run_w3_cron.sh")
-        subprocess.Popen(["bash", script], cwd=str(RSM_DIR))
+        subprocess.Popen(["bash", script], cwd=str(RSM_DIR), start_new_session=True)
     else:
         _, args = _PIPELINE_TASKS[task]
-        subprocess.Popen([venv_python] + args, cwd=str(RSM_DIR))
+        subprocess.Popen([venv_python] + args, cwd=str(RSM_DIR), start_new_session=True)
 
     label = _PIPELINE_TASKS[task][0]
     return RedirectResponse(f"/?triggered={label}", status_code=303)
