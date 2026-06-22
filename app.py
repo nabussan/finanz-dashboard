@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -200,6 +200,31 @@ async def index(request: Request):
     systems = await _system_status(pool)
     systems.append(_gateway_status())
     return templates.TemplateResponse(request, "index.html", {"systems": systems})
+
+
+@app.post("/admin/iv/refresh")
+async def iv_refresh(ticker: str = Form(...)):
+    """Schneller Einzel-Ticker-IV-Refresh (Sekunden statt der ~20-40 Min des
+    vollen 'IV-Daten'-Laufs, der erst nach der gesamten Universe einen
+    frischen run_at schreibt -- siehe update_iv_ticker.py-Docstring). Async
+    Subprocess statt subprocess.run(), damit der Event-Loop waehrend der
+    IBKR-Roundtrips nicht fuer alle Nutzer blockiert.
+    """
+    venv_python = str(RSM_DIR / ".venv" / "bin" / "python3")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            venv_python, "src/update_iv_ticker.py", ticker,
+            cwd=str(RSM_DIR),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
+        lines = [l for l in stdout.decode(errors="replace").splitlines() if l.strip()]
+        data = json.loads(lines[-1]) if lines else {"ok": False, "error": "Keine Ausgabe"}
+    except asyncio.TimeoutError:
+        return JSONResponse({"ok": False, "error": "Timeout (60s)"}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    return JSONResponse(data)
 
 
 @app.post("/admin/run/{task}")
