@@ -458,6 +458,20 @@ td a:hover { text-decoration: underline; }
 .tab-item:hover .tab-delete-btn { color: var(--muted); }
 .tab-delete-btn:hover { color: var(--red) !important; }
 
+.iv-refresh-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 3px;
+  transition: color .15s;
+}
+.iv-refresh-btn:hover   { color: var(--blue); }
+.iv-refresh-btn:disabled { cursor: default; opacity: .7; }
+
 /* ── Watchlist header (tabs + toolbar row) ───────── */
 .wl-header { margin-bottom: 0; }
 

@@ -72,9 +72,12 @@
           </div>
         </td>
         <td>{{ "%+.2f"|format(s.z_score) if s.z_score is not none else "—" }}</td>
-        <td>{{ "%.0f"|format(s.iv_rank) if s.iv_rank is not none else "—" }}</td>
-        <td>{{ "%.1f"|format(s.vrp) if s.vrp is not none else "—" }}</td>
-        <td>{{ "%.0f"|format(s.ann_return) if s.ann_return is not none else "—" }}</td>
+        <td class="iv-cell">{{ "%.0f"|format(s.iv_rank) if s.iv_rank is not none else "—" }}</td>
+        <td class="vrp-cell">{{ "%.1f"|format(s.vrp) if s.vrp is not none else "—" }}</td>
+        <td class="ann-cell">
+          <span class="ann-val">{{ "%.0f"|format(s.ann_return) if s.ann_return is not none else "—" }}</span>
+          <button type="button" class="iv-refresh-btn" onclick="event.stopPropagation(); refreshIVRow(this)" title="IV/VRP/Ann% jetzt aktualisieren (~10s)">↻</button>
+        </td>
         <td>{{ s.klasse or "—" }}</td>
       </tr>
       {% endfor %}
@@ -222,6 +225,34 @@
       });
     });
   });
+
+  window.refreshIVRow = function (btn) {
+    var row = btn.closest('tr');
+    var ticker = row.dataset.ticker;
+    btn.disabled = true;
+    btn.textContent = '…';
+    var body = new URLSearchParams({ ticker: ticker });
+    fetch('/admin/iv/refresh', { method: 'POST', body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          row.querySelector('.iv-cell').textContent  = d.iv_rank    != null ? d.iv_rank.toFixed(0)    : '—';
+          row.querySelector('.vrp-cell').textContent  = d.vrp       != null ? d.vrp.toFixed(1)         : '—';
+          row.querySelector('.ann-val').textContent   = d.ann_return!= null ? d.ann_return.toFixed(0) : '—';
+          var now = new Date().toLocaleTimeString('de-DE');
+          btn.title = 'Zuletzt aktualisiert: ' + now;
+          btn.textContent = '✓';
+        } else {
+          btn.textContent = '✗';
+          btn.title = d.error || 'Fehler';
+        }
+        setTimeout(function () { btn.textContent = '↻'; btn.disabled = false; }, 2500);
+      })
+      .catch(function () {
+        btn.textContent = '✗';
+        btn.disabled = false;
+      });
+  };
 }());
 </script>
 {% endblock %}

@@ -104,9 +104,10 @@
       <div class="ticker-stats">
         <span class="ticker-stat {{ score_class(p.score) }}">Scr&nbsp;{{ "%.0f"|format(p.score) if p.score is not none else "—" }}</span>
         <span class="ticker-stat {{ z_class(p.z_score) }}">z&nbsp;{{ "%+.1f"|format(p.z_score) if p.z_score is not none else "—" }}</span>
-        <span class="ticker-stat {{ ivr_class(p.iv_rank) }}">IVR&nbsp;{{ "%.0f"|format(p.iv_rank) if p.iv_rank is not none else "—" }}</span>
-        <span class="ticker-stat {{ vrp_class(p.vrp) }}">VRP&nbsp;{{ "%.1f"|format(p.vrp) if p.vrp is not none else "—" }}</span>
-        <span class="ticker-stat {{ rend_class(p.ann_return) }}">{{ "%+.0f%%"|format(p.ann_return) if p.ann_return is not none else "—" }}</span>
+        <span class="ticker-stat {{ ivr_class(p.iv_rank) }}">IVR&nbsp;<span class="iv-cell">{{ "%.0f"|format(p.iv_rank) if p.iv_rank is not none else "—" }}</span></span>
+        <span class="ticker-stat {{ vrp_class(p.vrp) }}">VRP&nbsp;<span class="vrp-cell">{{ "%.1f"|format(p.vrp) if p.vrp is not none else "—" }}</span></span>
+        <span class="ticker-stat {{ rend_class(p.ann_return) }}"><span class="ann-val">{{ "%+.0f%%"|format(p.ann_return) if p.ann_return is not none else "—" }}</span></span>
+        <button type="button" class="iv-refresh-btn" onclick="event.stopPropagation(); refreshIVRow(this)" title="IV/VRP/Ann% jetzt aktualisieren (~10s)">↻</button>
       </div>
     </div>
     {% endfor %}
@@ -294,6 +295,34 @@
     });
     el.classList.add('ticker-item--active');
     loadChart(el);
+  };
+
+  window.refreshIVRow = function (btn) {
+    var item = btn.closest('.ticker-item');
+    var ticker = item.dataset.ticker;
+    btn.disabled = true;
+    btn.textContent = '…';
+    var body = new URLSearchParams({ ticker: ticker });
+    fetch('/admin/iv/refresh', { method: 'POST', body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          item.querySelector('.iv-cell').textContent  = d.iv_rank    != null ? d.iv_rank.toFixed(0)            : '—';
+          item.querySelector('.vrp-cell').textContent  = d.vrp       != null ? d.vrp.toFixed(1)                 : '—';
+          item.querySelector('.ann-val').textContent   = d.ann_return!= null ? (d.ann_return >= 0 ? '+' : '') + d.ann_return.toFixed(0) + '%' : '—';
+          var now = new Date().toLocaleTimeString('de-DE');
+          btn.title = 'Zuletzt aktualisiert: ' + now;
+          btn.textContent = '✓';
+        } else {
+          btn.textContent = '✗';
+          btn.title = d.error || 'Fehler';
+        }
+        setTimeout(function () { btn.textContent = '↻'; btn.disabled = false; }, 2500);
+      })
+      .catch(function () {
+        btn.textContent = '✗';
+        btn.disabled = false;
+      });
   };
 }());
 </script>
