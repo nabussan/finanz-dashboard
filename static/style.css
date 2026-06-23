@@ -736,12 +736,25 @@ td a:hover { text-decoration: underline; }
   gap: 3px;
   transition: border-color .15s;
   min-width: 180px;
+  position: relative;
 }
 
 .admin-btn:hover { border-color: var(--blue); }
 
 .admin-btn--full { border-color: var(--orange); }
 .admin-btn--full:hover { border-color: var(--orange); background: rgba(240,165,0,.06); }
+
+/* Ampel: rot = Daten nicht von heute, gelb = Lauf aktiv, gruen = heute abgeschlossen */
+.admin-btn-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  position: absolute; top: 10px; right: 12px;
+}
+.admin-btn--status-red    .admin-btn-dot { background: var(--red); }
+.admin-btn--status-yellow .admin-btn-dot { background: var(--orange); box-shadow: 0 0 4px var(--orange); animation: admin-pulse 1.5s ease-in-out infinite; }
+.admin-btn--status-green  .admin-btn-dot { background: var(--green); }
+
+@keyframes admin-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .admin-btn-label {
   font-size: 13px;

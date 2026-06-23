@@ -94,14 +94,32 @@ async def insert_items(pool, cluster_id: int, symbols: list[str], statuses: list
 
 
 async def tickers_missing_prices(pool, cluster_id: int) -> list[str]:
-    """Cluster-Ticker ohne Weekly- oder Daily-Kursdaten in rsm_prices."""
+    """Cluster-Ticker ohne AKTUELLE Weekly- oder Daily-Kursdaten in rsm_prices.
+
+    Reine Existenz-Pruefung (irgendeine Zeile, egal wie alt) reichte nicht --
+    Ticker, die bereits ueber eine andere Liste/Position getrackt werden,
+    hatten dadurch oft nur veraltete Zeilen (z.B. von gestern) und galten
+    trotzdem faelschlich als "hat Kursdaten", wodurch kein Refresh ausgeloest
+    wurde (Befund 2026-06-23, Cluster 'Optionen': 6 Ticker mit max_date =
+    Vortag, Meldung trotzdem "Alle Ticker haben Kursdaten"). Schwellenwerte
+    analog zum bestehenden 5-Tage-Lookback in eod_update.py::_sync_to_pg
+    (Daily) + Puffer fuer den woechentlichen Bar-Turnus (Weekly).
+    """
     rows = await pool.fetch(
         """
         SELECT ci.tv_symbol FROM cluster_items ci
         WHERE ci.cluster_id = $1
         AND (
-            NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = ci.tv_symbol AND interval = '1week')
-            OR NOT EXISTS (SELECT 1 FROM rsm_prices WHERE ticker = ci.tv_symbol AND interval = '1day')
+            NOT EXISTS (
+                SELECT 1 FROM rsm_prices
+                WHERE ticker = ci.tv_symbol AND interval = '1week'
+                AND date >= CURRENT_DATE - INTERVAL '10 days'
+            )
+            OR NOT EXISTS (
+                SELECT 1 FROM rsm_prices
+                WHERE ticker = ci.tv_symbol AND interval = '1day'
+                AND date >= CURRENT_DATE - INTERVAL '5 days'
+            )
         )
         """,
         cluster_id,

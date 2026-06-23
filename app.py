@@ -1,8 +1,11 @@
 """Finanz Dashboard — FastAPI entry point."""
 import asyncio
 import json
+import os
+import sqlite3
 import subprocess
 from contextlib import asynccontextmanager
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Form
@@ -25,6 +28,92 @@ _PIPELINE_TASKS = {
     "classify": ("Klasse neu berechnen (alle Ticker)", ["src/determine_class.py"]),
     "full":   ("Alles (EOD + IV + Scores + Charts)", None),  # handled separately
 }
+
+
+def _is_today(dt) -> bool:
+    if dt is None:
+        return False
+    d = dt.date() if hasattr(dt, "date") else dt
+    return d == date.today()
+
+
+def _task_running(task: str) -> bool:
+    """'full' nutzt ondemand_update.sh's eigenes flock-Lock (erkennt JEDEN
+    laufenden On-Demand-Lauf, nicht nur ueber den Button gestartete -- z.B.
+    auch den Trigger aus trigger_ondemand_update() bei Listen-Imports).
+    Die anderen Tasks haben kein eigenes Lock, daher PID-Datei aus admin_run().
+    """
+    if task == "full":
+        lockfile = RSM_DIR / "data" / ".ondemand.lock"
+        try:
+            result = subprocess.run(
+                ["flock", "-n", "-x", str(lockfile), "-c", "true"],
+                capture_output=True, timeout=5,
+            )
+            return result.returncode != 0
+        except Exception:
+            return False
+    pidfile = RSM_DIR / "data" / f".run_{task}.pid"
+    try:
+        pid = int(pidfile.read_text().strip())
+        os.kill(pid, 0)
+        return True
+    except (FileNotFoundError, ValueError, ProcessLookupError, PermissionError):
+        return False
+
+
+async def _pipeline_status(pool) -> dict[str, str]:
+    """Ampel je Pipeline-Button: 'yellow' wenn aktuell aktiv, sonst 'green'
+    wenn die jeweilige Datenquelle heute aktualisiert wurde, sonst 'red'.
+
+    'iv' und 'scores' teilen sich denselben Frische-Indikator (signals.run_at),
+    weil run_w3.py den Options-Screen IMMER mitlaufen laesst -- unabhaengig
+    von --ibkr-only/--skip-update (siehe run_w3.py::run(), Schritt 3) --
+    beide Buttons aktualisieren also tatsaechlich dasselbe Feld, es gibt
+    keine getrennte Datenquelle, die sie unterscheiden wuerde.
+    """
+    intraday_max, eod_max, run_at_max = await asyncio.gather(
+        pool.fetchval("SELECT max(updated_at) FROM live_quotes"),
+        pool.fetchval("SELECT max(date) FROM rsm_prices WHERE interval = '1day'"),
+        pool.fetchval("SELECT max(run_at) FROM signals"),
+    )
+
+    charts_file = RSM_DIR / "data" / "charts" / "portfolio.html"
+    charts_fresh = charts_file.exists() and _is_today(
+        datetime.fromtimestamp(charts_file.stat().st_mtime)
+    )
+
+    classify_fresh = False
+    sqlite_path = RSM_DIR / "data" / "rsm_data.db"
+    if sqlite_path.exists():
+        try:
+            conn = sqlite3.connect(str(sqlite_path))
+            row = conn.execute("SELECT max(klasse_updated) FROM tickers").fetchone()
+            conn.close()
+            if row and row[0]:
+                classify_fresh = _is_today(datetime.fromisoformat(row[0]))
+        except Exception:
+            pass
+
+    full_marker = RSM_DIR / "data" / ".full_last_success"
+    full_fresh = full_marker.exists() and _is_today(
+        datetime.fromtimestamp(full_marker.stat().st_mtime)
+    )
+
+    fresh = {
+        "intraday": _is_today(intraday_max),
+        "eod": _is_today(eod_max),
+        "iv": _is_today(run_at_max),
+        "scores": _is_today(run_at_max),
+        "charts": charts_fresh,
+        "classify": classify_fresh,
+        "full": full_fresh,
+    }
+
+    return {
+        task: "yellow" if _task_running(task) else ("green" if ok else "red")
+        for task, ok in fresh.items()
+    }
 
 
 @asynccontextmanager
@@ -199,7 +288,10 @@ async def index(request: Request):
     pool = await db.get_pool()
     systems = await _system_status(pool)
     systems.append(_gateway_status())
-    return templates.TemplateResponse(request, "index.html", {"systems": systems})
+    pipeline_status = await _pipeline_status(pool)
+    return templates.TemplateResponse(
+        request, "index.html", {"systems": systems, "pipeline_status": pipeline_status}
+    )
 
 
 @app.post("/admin/iv/refresh")
@@ -252,9 +344,12 @@ async def admin_run(task: str):
         # Kollision mit einem parallel laufenden Cron-Lauf.
         script = str(RSM_DIR / "infra" / "ondemand_update.sh")
         subprocess.Popen(["bash", script], cwd=str(RSM_DIR), start_new_session=True)
+        # 'full' braucht keine PID-Datei -- _task_running() prueft stattdessen
+        # ondemand_update.sh's eigenes flock-Lock direkt (siehe _pipeline_status()).
     else:
         _, args = _PIPELINE_TASKS[task]
-        subprocess.Popen([venv_python] + args, cwd=str(RSM_DIR), start_new_session=True)
+        proc = subprocess.Popen([venv_python] + args, cwd=str(RSM_DIR), start_new_session=True)
+        (RSM_DIR / "data" / f".run_{task}.pid").write_text(str(proc.pid))
 
     label = _PIPELINE_TASKS[task][0]
     return RedirectResponse(f"/?triggered={label}", status_code=303)

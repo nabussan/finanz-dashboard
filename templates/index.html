@@ -38,43 +38,50 @@
 <h2 style="margin-top: 32px;">Pipeline manuell starten</h2>
 <div class="admin-grid">
   <form method="post" action="/admin/run/intraday">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.intraday }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">Intraday-Kurse</span>
       <span class="admin-btn-hint">intraday_prices.py (IBKR Snapshot → PG)</span>
     </button>
   </form>
   <form method="post" action="/admin/run/eod">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.eod }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">OHLCV-Preisdaten</span>
       <span class="admin-btn-hint">eod_update.py (IBKR, kein Options-Screen)</span>
     </button>
   </form>
   <form method="post" action="/admin/run/iv">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.iv }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert (teilt sich Indikator mit W3-Scores, siehe Hint dort)">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">IV-Daten (IBKR)</span>
       <span class="admin-btn-hint">run_w3.py --ibkr-only</span>
     </button>
   </form>
   <form method="post" action="/admin/run/scores">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.scores }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert (signals.run_at -- identischer Indikator wie IV-Daten, da run_w3.py den Options-Screen immer mitlaufen lässt)">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">W3-Scores berechnen</span>
       <span class="admin-btn-hint">run_w3.py --skip-update</span>
     </button>
   </form>
   <form method="post" action="/admin/run/charts">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.charts }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">Charts neu generieren</span>
       <span class="admin-btn-hint">make_charts.py</span>
     </button>
   </form>
   <form method="post" action="/admin/run/classify">
-    <button class="admin-btn">
+    <button class="admin-btn admin-btn--status-{{ pipeline_status.classify }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">Klasse neu berechnen</span>
       <span class="admin-btn-hint">determine_class.py (alle Ticker, OOS-Backtest)</span>
     </button>
   </form>
   <form method="post" action="/admin/run/full">
-    <button class="admin-btn admin-btn--full">
+    <button class="admin-btn admin-btn--full admin-btn--status-{{ pipeline_status.full }}" title="rot: nicht von heute · gelb: läuft · grün: heute erfolgreich abgeschlossen">
+      <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">Alles (Full Pipeline)</span>
       <span class="admin-btn-hint">EOD + IV + Scores + Charts</span>
     </button>

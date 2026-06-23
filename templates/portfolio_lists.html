@@ -40,14 +40,12 @@
 <div class="wl-notice{% if missing %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
   {{ imported }} Symbol(e) importiert.
   {% if missing %}
-    <strong>{{ missing }} ohne Kursdaten</strong> — werden automatisch geladen (~1 Min), Seite lädt gleich neu …
+    <strong>{{ missing }} ohne aktuelle Kursdaten</strong> — Kursdatenabfrage angestoßen,
+    kann je nach Listengröße 20–40 Min dauern (voller EOD+IV-Lauf).
   {% else %}
-    Alle Ticker haben Kursdaten.
+    Alle Ticker haben aktuelle Kursdaten.
   {% endif %}
 </div>
-{% if missing %}
-<script>setTimeout(() => { window.location.href = window.location.pathname; }, 45000);</script>
-{% endif %}
 {% endif %}
 
 {% if active_list is none %}
