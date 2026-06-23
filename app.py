@@ -243,7 +243,14 @@ async def admin_run(task: str):
     # stillschweigend getoetet). Gleiches Muster wie trigger_ondemand_update()
     # in routers/_cluster_shared.py.
     if task == "full":
-        script = str(RSM_DIR / "infra" / "run_w3_cron.sh")
+        # ondemand_update.sh = eod_update.py (OHLCV+IV) && run_w3.py (Scores)
+        # && make_charts.py -- exakt die Sequenz, die das Label verspricht.
+        # Vorher zeigte "full" faelschlich auf run_w3_cron.sh, das den
+        # EOD/OHLCV/IV-Schritt komplett ausliess (Befund 2026-06-23). Als
+        # Nebeneffekt bringt ondemand_update.sh sein eigenes flock-Lock +
+        # isolierte IBKR-Client-IDs (16/17) mit, schuetzt also auch gegen
+        # Kollision mit einem parallel laufenden Cron-Lauf.
+        script = str(RSM_DIR / "infra" / "ondemand_update.sh")
         subprocess.Popen(["bash", script], cwd=str(RSM_DIR), start_new_session=True)
     else:
         _, args = _PIPELINE_TASKS[task]
