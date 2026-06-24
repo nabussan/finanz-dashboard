@@ -26,7 +26,7 @@ _rank_status: dict = {"status": "idle", "last_run": None}
 
 async def _load_clusters(pool) -> list[dict]:
     rows = await pool.fetch(
-        "SELECT id, name, kind FROM clusters WHERE kind IN ('watchlist', 'micro_list') ORDER BY kind, name"
+        "SELECT id, name FROM clusters WHERE kind = 'micro_list' ORDER BY name"
     )
     return [dict(r) for r in rows]
 
