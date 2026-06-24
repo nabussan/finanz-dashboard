@@ -283,6 +283,14 @@ def _gateway_status() -> dict:
     }
 
 
+@app.get("/api/live-prices")
+async def api_live_prices():
+    """Aktuelle Intraday-Preise aus live_quotes fuer die Chart-Preislinie."""
+    pool = await db.get_pool()
+    rows = await pool.fetch("SELECT ticker, price FROM live_quotes")
+    return JSONResponse({r["ticker"]: float(r["price"]) for r in rows})
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     pool = await db.get_pool()
