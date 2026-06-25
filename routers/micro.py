@@ -76,6 +76,7 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
             JOIN cluster_items ci
               ON upper(split_part(ci.tv_symbol, ':', 2)) = upper(f.ticker)
               OR upper(ci.tv_symbol) = upper(f.ticker)
+              OR upper(split_part(ci.tv_symbol, ':', 2) || '_' || split_part(ci.tv_symbol, ':', 1)) = upper(f.ticker)
             WHERE ci.cluster_id = $1
               AND f.updated = (SELECT MAX(updated) FROM fundamentals)
             ORDER BY f.ranking_score DESC NULLS LAST
