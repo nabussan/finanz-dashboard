@@ -95,6 +95,8 @@
          onclick="switchChart(this)">
       <div class="ticker-symbol">
         {{ p.tv_symbol }}
+        {%- set _bare = p.tv_symbol.split(':')[1] if ':' in p.tv_symbol else p.tv_symbol -%}
+        {%- if ucits_map.get(_bare) %}<span class="ticker-ucits">({{ ucits_map[_bare] }})</span>{% endif %}
         {% if p.signal %}
         <span class="badge badge--{{ p.signal | lower }}" style="font-size:9px; padding:1px 5px;">{{ p.signal }}</span>
         {% endif %}

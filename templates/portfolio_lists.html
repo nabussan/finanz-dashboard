@@ -85,7 +85,11 @@
          data-anchor="{{ anchor }}"
          data-tv-symbol="{{ p.tv_symbol }}"
          onclick="rowClick(this)">
-      <div class="ticker-symbol">{{ p.tv_symbol }}</div>
+      <div class="ticker-symbol">
+        {{ p.tv_symbol }}
+        {%- set _bare = p.tv_symbol.split(':')[1] if ':' in p.tv_symbol else p.tv_symbol -%}
+        {%- if ucits_map.get(_bare) %}<span class="ticker-ucits">({{ ucits_map[_bare] }})</span>{% endif %}
+      </div>
       <div class="pl-price-row">
         {% if p.current_price is not none %}
         <span class="pl-price">{{ "%.2f" | format(p.current_price) }}</span>

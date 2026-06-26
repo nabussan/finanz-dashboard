@@ -1,6 +1,7 @@
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import yaml
 
 _REPO_ROOT = Path(__file__).parent.parent
 load_dotenv(_REPO_ROOT / ".env")
@@ -22,6 +23,28 @@ RSM_DATA_DIR     = Path(os.environ.get("RSM_DATA_DIR",     _REPO_ROOT / "rsm-liv
 MICRO_JSON_DIR    = Path(os.environ.get("MICRO_JSON_DIR",    "/home/christoph/Finanz/micro/data/json"))
 MICRO_CLUSTER_DIR = Path(os.environ.get("MICRO_CLUSTER_DIR", Path(__file__).parent / "data" / "micro_clusters"))
 MICRO_CONFIG_PATH = Path(os.environ.get("MICRO_CONFIG_PATH", "/home/christoph/Finanz/micro/config/config_kennzahlen.txt"))
+
+DISCO_UNIVERSE_PATH = Path(os.environ.get(
+    "DISCO_UNIVERSE_PATH",
+    "/home/christoph/Finanz/disco/config/universe.yaml",
+))
+
+def load_ucits_map() -> dict[str, str]:
+    """Liefert {US-ticker → UCITS-Symbol}, z.B. {'SPY': 'LSE:CSPX'}."""
+    try:
+        data = yaml.safe_load(DISCO_UNIVERSE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    result: dict[str, str] = {}
+    for entries in data.values():
+        if not isinstance(entries, list):
+            continue
+        for e in entries:
+            if isinstance(e, dict) and e.get("ucits") and e.get("ticker"):
+                result.setdefault(e["ticker"], e["ucits"])
+    return result
+
+UCITS_MAP: dict[str, str] = load_ucits_map()
 
 DISCO_LATEST_HTML = DISCO_OUTPUT_DIR / "discovery_latest.html"
 RSM_PORTFOLIO_HTML       = RSM_DATA_DIR / "charts" / "portfolio.html"

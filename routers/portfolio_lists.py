@@ -4,6 +4,7 @@ from fastapi import APIRouter, Form, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+import config
 import db
 from routers._cluster_shared import (
     parse_tv_import, upsert_cluster, insert_items,
@@ -112,6 +113,7 @@ async def portfolio_listen_page(request: Request, list_id: int,
             "imported": imported,
             "missing": missing,
             "klasse_stand": klasse_stand,
+            "ucits_map": config.UCITS_MAP,
         },
     )
 

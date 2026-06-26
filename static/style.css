@@ -648,6 +648,8 @@ td a:hover { text-decoration: underline; }
 .ticker-stat--orange { color: var(--orange); }
 .ticker-stat--red    { color: var(--red); }
 
+.ticker-ucits { font-size: 10px; color: var(--muted); margin-left: 4px; }
+
 /* Admin-Sektion am Ende des Ticker-Panels */
 .ticker-panel-admin {
   margin-top: auto;

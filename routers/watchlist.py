@@ -138,6 +138,7 @@ async def watchlist_page(request: Request, wl_id: int,
             "missing": missing,
             "charts_available": config.RSM_PORTFOLIO_HTML.exists(),
             "klasse_stand": klasse_stand,
+            "ucits_map": config.UCITS_MAP,
         },
     )
 
