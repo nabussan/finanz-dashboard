@@ -1,0 +1,338 @@
+# ETF-Universe für disco — Capital-Flow Discovery
+#
+# Felder:
+#   ticker:       US-Symbol (Twelve Data / TradingView)
+#   name:         Beschreibung
+#   layer:        asset | sector | region | fx | factor | context
+#   benchmark:    Vergleichsbasis für RS-Ratio
+#   ucits:        UCITs-Äquivalent für IBKR EU (Exchange:Symbol)
+#
+# WICHTIG: Benchmarks sind im Universe unter layer=context definiert.
+# Die RS-Ratio wird immer in USD berechnet (Währungseffekt nicht isoliert).
+
+# ── Benchmarks & Kontext-Ticker ────────────────────────────────────────────────
+# Diese Ticker fließen NICHT ins Ranking — nur in Berechnungen und Kontext-Sheet
+context:
+  - ticker: BIL
+    name: 1-3M T-Bills (Risikofreier Zins)
+    layer: context
+    benchmark: null
+    ucits: null
+
+  - ticker: SPY
+    name: S&P 500
+    layer: context
+    benchmark: BIL
+    ucits: "LSE:CSPX"
+
+  - ticker: ACWI
+    name: MSCI All Country World
+    layer: context
+    benchmark: BIL
+    ucits: "LSE:IWDA"
+
+  - ticker: DBC
+    name: Commodities Broad (Benchmark Rohstoffe)
+    layer: context
+    benchmark: BIL
+    ucits: null
+
+  - ticker: UUP
+    name: US Dollar Index Bullish ETF
+    layer: context
+    benchmark: null
+    ucits: null
+
+  # VIX nicht per Twelve Data abrufbar — Stress-Proxy via SPY Realized Vol in scan.py
+
+  - ticker: HYG
+    name: High-Yield Corporate Bonds (iShares)
+    layer: context
+    benchmark: null
+    ucits: "LSE:IHYU"
+
+  - ticker: IEI
+    name: 3-7Y Treasury Bonds
+    layer: context
+    benchmark: null
+    ucits: null
+
+# ── Layer 1: Asset-Klassen (vs BIL) ────────────────────────────────────────────
+# Vergleich aller Haupt-Anlageklassen gegen den risikofreien Zins.
+# Zeigt: Wo fließt Kapital hin, weg von Cash?
+asset:
+  - ticker: SPY
+    name: US Aktien (S&P 500)
+    layer: asset
+    benchmark: BIL
+    ucits: "LSE:CSPX"
+
+  - ticker: EFA
+    name: Int. Aktien (MSCI World ex-US)
+    layer: asset
+    benchmark: BIL
+    ucits: "LSE:IWDA"
+
+  - ticker: GLD
+    name: Gold
+    layer: asset
+    benchmark: BIL
+    ucits: "LSE:IGLN"
+
+  - ticker: TLT
+    name: US Anleihen 20Y+
+    layer: asset
+    benchmark: BIL
+    ucits: "LSE:IDTL"
+
+  - ticker: DBC
+    name: Rohstoffe (Broad)
+    layer: asset
+    benchmark: BIL
+    ucits: null
+
+  - ticker: IBIT
+    name: Bitcoin (iShares)
+    layer: asset
+    benchmark: BIL
+    # ACHTUNG: IBIT-Daten erst ab Jan 2024 — Percentrank(52W) erst ab Jan 2025 stabil
+    ucits: null
+
+# ── Layer 2: US-Sektoren (vs SPY) ──────────────────────────────────────────────
+# GIP-Quadranten (Growth/Inflation/Policy):
+#   Q1 Goldilocks (Wachstum↑ Inflation↓): XLK, XLY, XLF, XLI
+#   Q2 Reflation  (Wachstum↑ Inflation↑): XLE, XLB
+#   Q3 Stagflation(Wachstum↓ Inflation↑): XLP, XLU
+#   Q4 Deflation  (Wachstum↓ Inflation↓): XLV, XLRE
+#   Q0 Neutral:                            XLC
+sector:
+  - ticker: XLK
+    name: Technology
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q1
+    ucits: "XETR:QDVE"
+
+  - ticker: XLY
+    name: Consumer Discretionary
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q1
+    ucits: "XETR:XDWC"
+
+  - ticker: XLF
+    name: Financials
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q1
+    ucits: "XETR:QDVF"
+
+  - ticker: XLI
+    name: Industrials
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q1
+    ucits: "XETR:XDWI"
+
+  - ticker: XLE
+    name: Energy
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q2
+    ucits: "XETR:XDWE"
+
+  - ticker: XLB
+    name: Materials
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q2
+    ucits: "XETR:XDWM"
+
+  - ticker: XLP
+    name: Consumer Staples
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q3
+    ucits: "XETR:XDWS"
+
+  - ticker: XLU
+    name: Utilities
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q3
+    ucits: "XETR:XDWU"
+
+  - ticker: XLV
+    name: Health Care
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q4
+    ucits: "XETR:XDWH"
+
+  - ticker: XLRE
+    name: Real Estate
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q4
+    ucits: null
+
+  - ticker: XLC
+    name: Communication Services
+    layer: sector
+    benchmark: SPY
+    gip_quad: Q0
+    ucits: null
+
+# ── Layer 3: Regionen (vs ACWI) ────────────────────────────────────────────────
+# ACHTUNG: Alle RS-Ratios in USD — enthält Währungseffekt untrennbar.
+# Für saubere Interpretation: Dollar-Regime (UUP Percentrank) als Kontext prüfen.
+region:
+  - ticker: SPY
+    name: USA (S&P 500)
+    layer: region
+    benchmark: ACWI
+    ucits: "LSE:CSPX"
+
+  - ticker: EFA
+    name: Developed ex-US (MSCI World ex-US)
+    layer: region
+    benchmark: ACWI
+    ucits: "LSE:IWDA"
+
+  - ticker: EWJ
+    name: Japan
+    layer: region
+    benchmark: ACWI
+    ucits: "LSE:IJPN"
+
+  - ticker: EWG
+    name: Deutschland
+    layer: region
+    benchmark: ACWI
+    ucits: "XETR:EWG"
+
+  - ticker: EWU
+    name: Großbritannien
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+  - ticker: EEM
+    name: Emerging Markets (Broad)
+    layer: region
+    benchmark: ACWI
+    ucits: "LSE:IEEM"
+
+  - ticker: FXI
+    name: China (Large Cap)
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+  - ticker: INDA
+    name: Indien
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+  - ticker: EWZ
+    name: Brasilien
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+  - ticker: EWC
+    name: Kanada
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+  - ticker: EWY
+    name: Südkorea
+    layer: region
+    benchmark: ACWI
+    ucits: null
+
+# ── Layer 4: FX (vs UUP) ────────────────────────────────────────────────────────
+# ETF-Proxies für Währungsrotation gegen US Dollar.
+# RS-Ratio einer FX-ETF vs UUP zeigt relative Währungsstärke.
+fx:
+  - ticker: FXE
+    name: EUR/USD
+    layer: fx
+    benchmark: UUP
+    ucits: null
+
+  - ticker: FXY
+    name: JPY/USD
+    layer: fx
+    benchmark: UUP
+    ucits: null
+
+  - ticker: FXB
+    name: GBP/USD
+    layer: fx
+    benchmark: UUP
+    ucits: null
+
+  - ticker: FXF
+    name: CHF/USD
+    layer: fx
+    benchmark: UUP
+    ucits: null
+
+  - ticker: FXA
+    name: AUD/USD
+    layer: fx
+    benchmark: UUP
+    ucits: null
+
+# ── Layer 5: Faktoren (vs SPY) ──────────────────────────────────────────────────
+factor:
+  - ticker: VUG
+    name: US Growth (Vanguard)
+    layer: factor
+    benchmark: SPY
+    ucits: null
+
+  - ticker: VTV
+    name: US Value (Vanguard)
+    layer: factor
+    benchmark: SPY
+    ucits: null
+
+  - ticker: QUAL
+    name: US Quality (iShares)
+    layer: factor
+    benchmark: SPY
+    ucits: "LSE:IWQU"
+
+  - ticker: USMV
+    name: US Min Volatility (iShares)
+    layer: factor
+    benchmark: SPY
+    ucits: null
+
+  - ticker: MTUM
+    name: US Momentum (iShares)
+    layer: factor
+    benchmark: SPY
+    ucits: null
+
+  - ticker: IJR
+    name: US Small Cap (iShares)
+    layer: factor
+    benchmark: SPY
+    ucits: null
+
+  - ticker: QQQ
+    name: Nasdaq 100 (Invesco)
+    layer: factor
+    benchmark: SPY
+    ucits: "XETR:EQQQ"
+
+  - ticker: IWM
+    name: Russell 2000 Small Cap
+    layer: factor
+    benchmark: SPY
+    ucits: null

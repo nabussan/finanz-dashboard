@@ -26,7 +26,7 @@ MICRO_CONFIG_PATH = Path(os.environ.get("MICRO_CONFIG_PATH", "/home/christoph/Fi
 
 DISCO_UNIVERSE_PATH = Path(os.environ.get(
     "DISCO_UNIVERSE_PATH",
-    "/home/christoph/Finanz/disco/config/universe.yaml",
+    str(Path(__file__).parent / "config" / "universe.yaml"),
 ))
 
 def load_ucits_map() -> dict[str, str]:
