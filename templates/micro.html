@@ -101,21 +101,22 @@
           data-roic="{{ t.roic if t.roic is not none and t.roic == t.roic else '' }}"
           onclick="rowClick(this)">
         <td class="ticker-cell">{{ t.ticker }}</td>
-        <td>
+        <td class="{{ ampel('score', t.ranking_score) }}">
           {% if t.ranking_score is not none and t.ranking_score == t.ranking_score %}
+          {%- set _sc = ampel('score', t.ranking_score) -%}
           <div class="score-wrap">
             <span>{{ "%.2f"|format(t.ranking_score) }}</span>
-            <div class="score-bar"><div class="score-fill" style="width:{{ (t.ranking_score * 100)|int }}%"></div></div>
+            <div class="score-bar"><div class="score-fill score-fill--{{ _sc.split('--')[1] if '--' in _sc else 'neutral' }}" style="width:{{ (t.ranking_score * 100)|int }}%"></div></div>
           </div>
           {% else %}—{% endif %}
         </td>
-        <td>{{ "%.2f"|format(t.score_trends)        if t.score_trends is not none and t.score_trends == t.score_trends else "—" }}</td>
-        <td>{{ "%.2f"|format(t.score_cashflow)      if t.score_cashflow is not none and t.score_cashflow == t.score_cashflow else "—" }}</td>
-        <td>{{ "%.2f"|format(t.score_profitability) if t.score_profitability is not none and t.score_profitability == t.score_profitability else "—" }}</td>
-        <td>{{ "%.1f"|format(t.roic)         if t.roic is not none and t.roic == t.roic else "—" }}</td>
-        <td>{{ "%.1f"|format(t.ev_ebitda)    if t.ev_ebitda is not none and t.ev_ebitda == t.ev_ebitda else "—" }}</td>
-        <td>{{ "%.1f"|format(t.roe)          if t.roe is not none and t.roe == t.roe else "—" }}</td>
-        <td>{{ "%.2f"|format(t.debt_equity)  if t.debt_equity is not none and t.debt_equity == t.debt_equity else "—" }}</td>
+        <td class="{{ ampel('trends', t.score_trends) }}">{{ "%.2f"|format(t.score_trends)        if t.score_trends is not none and t.score_trends == t.score_trends else "—" }}</td>
+        <td class="{{ ampel('cf', t.score_cashflow) }}">{{ "%.2f"|format(t.score_cashflow)      if t.score_cashflow is not none and t.score_cashflow == t.score_cashflow else "—" }}</td>
+        <td class="{{ ampel('profit', t.score_profitability) }}">{{ "%.2f"|format(t.score_profitability) if t.score_profitability is not none and t.score_profitability == t.score_profitability else "—" }}</td>
+        <td class="{{ ampel('roic', t.roic) }}">{{ "%.1f"|format(t.roic)         if t.roic is not none and t.roic == t.roic else "—" }}</td>
+        <td class="{{ ampel('evebitda', t.ev_ebitda) }}">{{ "%.1f"|format(t.ev_ebitda)    if t.ev_ebitda is not none and t.ev_ebitda == t.ev_ebitda else "—" }}</td>
+        <td class="{{ ampel('roe', t.roe) }}">{{ "%.1f"|format(t.roe)          if t.roe is not none and t.roe == t.roe else "—" }}</td>
+        <td class="{{ ampel('de', t.debt_equity) }}">{{ "%.2f"|format(t.debt_equity)  if t.debt_equity is not none and t.debt_equity == t.debt_equity else "—" }}</td>
         <td class="micro-univ">{{ t.universe_rank or "—" }}</td>
       </tr>
       {% endfor %}

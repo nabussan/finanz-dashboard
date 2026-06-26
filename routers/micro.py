@@ -20,6 +20,23 @@ _UNTRACKED_LIST_NAME = "Manuell ergänzt"
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
+
+def _ampel(col: str, value) -> str:
+    cfg = config.MICRO_AMPEL.get(col)
+    if cfg is None or value is None or value != value:  # None oder NaN
+        return ""
+    if cfg["hi"]:
+        return "ticker-stat--green" if value >= cfg["green"] \
+          else "ticker-stat--orange" if value >= cfg["orange"] \
+          else "ticker-stat--red"
+    else:
+        return "ticker-stat--green" if value <= cfg["green"] \
+          else "ticker-stat--orange" if value <= cfg["orange"] \
+          else "ticker-stat--red"
+
+
+templates.env.globals["ampel"] = _ampel
+
 # In-Memory-Status für laufende Universe-Berechnung (nicht persistent)
 _rank_status: dict = {"status": "idle", "last_run": None}
 

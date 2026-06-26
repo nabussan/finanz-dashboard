@@ -939,7 +939,11 @@ td a:hover { text-decoration: underline; }
 
 .score-wrap { display: flex; flex-direction: column; gap: 3px; }
 .score-bar  { height: 2px; background: var(--border); border-radius: 1px; }
-.score-fill { height: 100%; background: var(--blue); border-radius: 1px; opacity: .55; }
+.score-fill         { height: 100%; background: var(--blue);   border-radius: 1px; opacity: .55; }
+.score-fill--green  { background: var(--green);  }
+.score-fill--orange { background: var(--orange); }
+.score-fill--red    { background: var(--red);    }
+.score-fill--neutral{ background: var(--blue);   }
 
 /* ── Portfolio-Listen Split-Pane Layout ──────────────────────────────────────── */
 
