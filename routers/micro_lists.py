@@ -192,7 +192,7 @@ def _start_fetch(list_id: int) -> None:
     }, ensure_ascii=False), encoding="utf-8")
     subprocess.Popen(
         [
-            sys.executable, str(config.MICRO_SCRAPER_PATH),
+            str(config.MICRO_SCRAPER_PYTHON), str(config.MICRO_SCRAPER_PATH),
             "--cluster-id", str(list_id),
             "--db-url", config.DB_URL,
             "--json-dir", str(config.MICRO_JSON_DIR),

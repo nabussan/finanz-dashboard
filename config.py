@@ -23,7 +23,8 @@ RSM_DATA_DIR     = Path(os.environ.get("RSM_DATA_DIR",     _REPO_ROOT / "rsm-liv
 MICRO_JSON_DIR    = Path(os.environ.get("MICRO_JSON_DIR",    "/home/christoph/Finanz/micro/data/json"))
 MICRO_CLUSTER_DIR = Path(os.environ.get("MICRO_CLUSTER_DIR", Path(__file__).parent / "data" / "micro_clusters"))
 MICRO_CONFIG_PATH = Path(os.environ.get("MICRO_CONFIG_PATH", "/home/christoph/Finanz/micro/config/config_kennzahlen.txt"))
-MICRO_SCRAPER_PATH = Path(os.environ.get("MICRO_SCRAPER_PATH", "/home/christoph/Finanz/rsm-live/src/fetch_fundamentals.py"))
+MICRO_SCRAPER_PATH   = Path(os.environ.get("MICRO_SCRAPER_PATH",   "/home/christoph/Finanz/rsm-live/src/fetch_fundamentals.py"))
+MICRO_SCRAPER_PYTHON = Path(os.environ.get("MICRO_SCRAPER_PYTHON", "/home/christoph/Finanz/rsm-live/.venv/bin/python"))
 
 DISCO_UNIVERSE_PATH = Path(os.environ.get(
     "DISCO_UNIVERSE_PATH",
