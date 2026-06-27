@@ -137,13 +137,12 @@
   <details style="margin-top:14px;">
     <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Wie kommt eine neue Liste rein?</summary>
     <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; padding-left:4px;">
-      <b>1. TV-Screener:</b> Filter setzen → F12 → Console → „Einfügen erlauben" → JS-Snippet ausführen → Ticker in Zwischenablage<br>
+      <b>1. TV-Screener:</b> Filter setzen → F12 → Console → „Einfügen erlauben" → JS-Snippet ausführen → Ticker in Zwischenablage:<br>
+      &nbsp;&nbsp;&nbsp;<code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);copy(t.join('\n'));console.log(t.length+' Ticker kopiert');</code><br>
       <b>2. Auf P53:</b> <code>python src/115_screener_zu_watchlist.py botb.txt --name "BOTB"</code><br>
       &nbsp;&nbsp;&nbsp;→ lädt Liste automatisch auf dieses Dashboard hoch<br>
       <b>3. Hier:</b> ▶ Holen klicken → Fundamentaldaten von TV laden (~2 Ticker/Min)<br>
-      <b>4. Hier:</b> ⟳ Ranking → Score + Ranking berechnen → „→ ansehen" öffnet /micro<br>
-      <br>
-      JS-Snippet (Konsole): <code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);copy(t.join('\n'));console.log(t.length+' Ticker kopiert');</code>
+      <b>4. Hier:</b> ⟳ Ranking → Score + Ranking berechnen → „→ ansehen" öffnet /micro
     </div>
   </details>
 </div>
