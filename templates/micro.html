@@ -50,8 +50,12 @@
     </div>
     <div id="no-prices-hint" class="wl-notice wl-notice--warn" style="display:none; margin: 0 0 6px;">
       Keine IBKR-Kursdaten für diesen Ticker (nur Fundamentaldaten vorhanden).
+      {% if active_cluster_id %}
+      <span style="margin-left:8px; font-size:11px; color:var(--muted);">Wird beim nächsten Cron-Lauf automatisch geholt.</span>
+      {% else %}
       <button type="button" class="btn-secondary" id="track-btn" style="margin-left:8px; font-size:11px; padding:2px 8px;"
               onclick="trackCurrentSymbol()">+ Zu Liste hinzufügen</button>
+      {% endif %}
     </div>
     <div class="chart-body">
       <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
