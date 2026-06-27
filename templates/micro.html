@@ -12,13 +12,25 @@
     {% endfor %}
   </nav>
 
-  <form method="post"
-        action="/micro/rank{% if active_cluster_id %}?cluster_id={{ active_cluster_id }}{% endif %}"
-        style="display:inline;">
-    <button type="submit" class="rsm-filter-btn micro-rank-btn" id="rank-btn">
-      ⟳ Ranking
-    </button>
-  </form>
+  <div class="wl-toolbar" style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+    <form method="post" action="/micro-listen/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title="TV-Watchlist (.txt) hochladen — Dateiname = Listen-Name">
+        ⊕ Datei
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+      </label>
+    </form>
+    <form method="post" action="/micro-listen" class="wl-new-form">
+      <input type="text" name="name" placeholder="Neue Liste…" required class="wl-name-input" style="width:120px;">
+      <button type="submit" class="btn-secondary">+ Anlegen</button>
+    </form>
+    <form method="post"
+          action="/micro/rank{% if active_cluster_id %}?cluster_id={{ active_cluster_id }}{% endif %}"
+          style="display:inline;">
+      <button type="submit" class="rsm-filter-btn micro-rank-btn" id="rank-btn">
+        ⟳ Ranking
+      </button>
+    </form>
+  </div>
 
   {% if scored_at %}
   <span class="rsm-run-date" title="Datum des letzten Universe-Ranking-Laufs (MAX(updated) in fundamentals) — nicht das Scrape-Datum jeder einzelnen Kennzahl, das kann je Ticker älter sein.">Stand: {{ scored_at }}</span>
