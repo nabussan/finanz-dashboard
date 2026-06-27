@@ -43,9 +43,23 @@ _rank_status: dict = {"status": "idle", "last_run": None}
 
 async def _load_clusters(pool) -> list[dict]:
     rows = await pool.fetch(
-        "SELECT id, name FROM clusters WHERE kind = 'micro_list' ORDER BY name"
+        """SELECT c.id, c.name, COUNT(ci.tv_symbol) AS item_count
+           FROM clusters c
+           LEFT JOIN cluster_items ci ON ci.cluster_id = c.id
+           WHERE c.kind = 'micro_list'
+           GROUP BY c.id, c.name ORDER BY c.name"""
     )
-    return [dict(r) for r in rows]
+    clusters = [dict(r) for r in rows]
+    for c in clusters:
+        pf = config.MICRO_CLUSTER_DIR / f"{c['id']}.fetch_status.json"
+        if pf.exists():
+            try:
+                c["fetch_status"] = json.loads(pf.read_text(encoding="utf-8"))
+            except Exception:
+                c["fetch_status"] = None
+        else:
+            c["fetch_status"] = None
+    return clusters
 
 
 _SUB_SCORES_AVAILABLE: bool | None = None  # cached per process
@@ -185,6 +199,7 @@ async def micro_page(request: Request, cluster_id: int | None = None):
             "scored_at": scored_at,
             "json_dir_ok": config.MICRO_JSON_DIR.exists(),
             "rank_status": _rank_status["status"],
+            "micro_cluster_dir": str(config.MICRO_CLUSTER_DIR),
         },
     )
 

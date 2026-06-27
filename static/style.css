@@ -998,6 +998,31 @@ td a:hover { text-decoration: underline; }
 .micro-rank-btn { border-color: var(--blue); color: var(--blue); }
 .micro-rank-btn:hover { background: rgba(79,142,247,.08); }
 
+.micro-pipeline-panel {
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.micro-pipeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.micro-pipeline-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 2px 8px 4px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.micro-pipeline-table td {
+  padding: 4px 8px 4px 2px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.micro-pipeline-table tr:last-child td { border-bottom: none; }
+.pipeline-progress { font-size: 11px; color: var(--muted); }
+
 .micro-panel { flex: 0 0 700px; overflow-x: auto; overflow-y: auto; }
 .micro-table { min-width: 660px; }
 

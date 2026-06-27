@@ -41,6 +41,94 @@
   {% endif %}
 </div>
 
+{# ── Pipeline-Panel (nur Alle-Tab) ───────────────────────────────────────── #}
+{% if not active_cluster_id %}
+<div class="micro-pipeline-panel" id="pipeline-panel">
+
+  <form method="post" action="/micro-listen/fetch-multi" id="multi-fetch-form">
+    <input type="hidden" name="list_ids" id="selected-ids-input" value="">
+    <table class="micro-pipeline-table">
+      <thead>
+        <tr>
+          <th style="width:28px;"><input type="checkbox" id="pipeline-select-all" onclick="togglePipelineAll(this)"></th>
+          <th>Liste</th>
+          <th style="text-align:right;">Ticker</th>
+          <th style="min-width:220px;">Datenholen</th>
+          <th style="min-width:140px;">Ranking</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clusters %}
+        <tr data-cluster-id="{{ c.id }}">
+          <td><input type="checkbox" class="pipeline-cb" value="{{ c.id }}"></td>
+          <td><a href="/micro?cluster_id={{ c.id }}" style="color:var(--text);">{{ c.name }}</a></td>
+          <td style="text-align:right; color:var(--muted);">{{ c.item_count }}</td>
+          <td class="pipeline-fetch-cell" id="fetch-cell-{{ c.id }}">
+            {% set fs = c.fetch_status %}
+            {% if fs and fs.status == 'running' %}
+              <span class="admin-btn-dot admin-btn--status-yellow"></span>
+              <span class="pipeline-progress">{{ fs.done }}/{{ fs.to_scrape if fs.to_scrape else '?' }} Ticker…</span>
+            {% elif fs and fs.status == 'done' %}
+              <span class="admin-btn-dot admin-btn--status-green"></span>
+              <span style="color:var(--muted); font-size:11px;">
+                {{ fs.done }} OK{% if fs.skipped_etf %} / {{ fs.skipped_etf }} ETF{% endif %}{% if fs.errors %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}
+                · {{ fs.finished_at[:10] if fs.finished_at else '' }}
+              </span>
+            {% elif fs and fs.status == 'error' %}
+              <span class="admin-btn-dot admin-btn--status-red"></span>
+              <span style="color:var(--red); font-size:11px;">Fehler</span>
+            {% else %}
+              <span class="admin-btn-dot" style="background:var(--muted);"></span>
+              <span style="color:var(--muted); font-size:11px;">nie</span>
+            {% endif %}
+            <form method="post" action="/micro-listen/{{ c.id }}/fetch" style="display:inline; margin-left:6px;">
+              <button class="btn-secondary" style="font-size:11px; padding:2px 8px;"
+                      {% if fs and fs.status == 'running' %}disabled{% endif %}>
+                ▶ Holen
+              </button>
+            </form>
+          </td>
+          <td style="font-size:11px; color:var(--muted);">
+            {% set cj_path = micro_cluster_dir + '/' + c.id|string + '.json' %}
+            {% if c.fetch_status and c.fetch_status.status == 'done' %}
+              <form method="post" action="/micro/rank?cluster_id={{ c.id }}" style="display:inline;">
+                <button class="btn-secondary" style="font-size:11px; padding:2px 8px;">⟳ Ranking</button>
+              </form>
+            {% else %}
+              <span style="color:var(--muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="color:var(--muted); padding:8px;">
+          Noch keine Listen — Datei hochladen oder oben anlegen.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+      <button type="button" class="btn-primary" onclick="submitMultiFetch()"
+              style="font-size:12px; padding:4px 14px;">▶ Datenholen für ausgewählte</button>
+      <span id="pipeline-sel-count" style="color:var(--muted); font-size:11px;">0 ausgewählt</span>
+    </div>
+  </form>
+
+  <details style="margin-top:10px;">
+    <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Wie kommt eine neue Liste rein?</summary>
+    <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; padding-left:4px;">
+      <b>1. TV-Screener:</b> Filter setzen → F12 → Console → „Einfügen erlauben" → JS-Snippet ausführen → Ticker in Zwischenablage<br>
+      <b>2. Auf P53:</b> <code>python src/115_screener_zu_watchlist.py botb.txt --name "BOTB"</code><br>
+      &nbsp;&nbsp;&nbsp;→ lädt Liste automatisch auf dieses Dashboard hoch<br>
+      <b>3. Hier:</b> ▶ Holen klicken → Fundamentaldaten werden von TV geladen (~2 Ticker/Min)<br>
+      <b>4. Hier:</b> ⟳ Ranking klicken → Score + Ranking berechnen<br>
+      <br>
+      JS-Snippet (Konsole): <code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);copy(t.join('\n'));console.log(t.length+' Ticker kopiert');</code>
+    </div>
+  </details>
+
+</div>
+{% endif %}
+
 {# ── Split-Pane ───────────────────────────────────────────────────────────── #}
 <div class="rsm-split">
 
@@ -347,6 +435,53 @@
       .catch(function () {});
   }
   checkStatus();
+
+  // Pipeline-Panel: Checkbox-Logik + Multi-Fetch
+  window.togglePipelineAll = function(master) {
+    document.querySelectorAll('.pipeline-cb').forEach(function(cb) { cb.checked = master.checked; });
+    updatePipelineCount();
+  };
+  document.querySelectorAll('.pipeline-cb').forEach(function(cb) {
+    cb.addEventListener('change', updatePipelineCount);
+  });
+  function updatePipelineCount() {
+    var checked = document.querySelectorAll('.pipeline-cb:checked').length;
+    var el = document.getElementById('pipeline-sel-count');
+    if (el) el.textContent = checked + ' ausgewählt';
+  }
+  window.submitMultiFetch = function() {
+    var ids = [...document.querySelectorAll('.pipeline-cb:checked')].map(function(cb) { return cb.value; });
+    if (!ids.length) { alert('Keine Liste ausgewählt.'); return; }
+    document.getElementById('selected-ids-input').value = ids.join(',');
+    document.getElementById('multi-fetch-form').submit();
+  };
+
+  // Polling für laufende Fetches im Pipeline-Panel
+  var runningClusters = [];
+  document.querySelectorAll('[data-cluster-id]').forEach(function(row) {
+    var cell = row.querySelector('[id^="fetch-cell-"]');
+    if (cell && cell.querySelector('.admin-btn--status-yellow')) {
+      runningClusters.push(row.dataset.clusterId);
+    }
+  });
+  if (runningClusters.length) {
+    function pollFetchStatus() {
+      var stillRunning = false;
+      var promises = runningClusters.map(function(cid) {
+        return fetch('/micro-listen/' + cid + '/pipeline-status')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.fetch && d.fetch.status === 'running') stillRunning = true;
+          }).catch(function() {});
+      });
+      Promise.all(promises).then(function() {
+        if (stillRunning) setTimeout(pollFetchStatus, 3000);
+        else location.reload();
+      });
+    }
+    setTimeout(pollFetchStatus, 3000);
+  }
+
 }());
 </script>
 {% endblock %}
