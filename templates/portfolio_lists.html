@@ -12,7 +12,7 @@
          class="tab-link{% if active_list and active_list.id == pl.id %} tab-link--active{% endif %}">
         {{ pl.name }}
       </a>
-      <form method="post" action="/portfolio-listen/{{ pl.id }}/delete" class="tab-delete-form"
+      <form method="post" action="/clusters/{{ pl.id }}/delete" class="tab-delete-form"
             onsubmit="return confirm('Liste »{{ pl.name }}« löschen?')">
         <button type="submit" class="tab-delete-btn" title="Liste löschen">×</button>
       </form>
