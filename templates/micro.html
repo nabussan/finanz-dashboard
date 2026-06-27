@@ -67,7 +67,7 @@
             {% set fs = c.fetch_status %}
             {% if fs and fs.status == 'running' %}
               <span class="admin-btn-dot admin-btn--status-yellow"></span>
-              <span class="pipeline-progress">{{ fs.done }}/{{ fs.to_scrape if fs.to_scrape else '?' }} Ticker…</span>
+              <span class="pipeline-progress">{{ fs.done }}/{{ fs.to_scrape if fs.to_scrape is not none else '?' }} Ticker…</span>
             {% elif fs and fs.status == 'done' %}
               <span class="admin-btn-dot admin-btn--status-green"></span>
               <span style="color:var(--muted); font-size:11px;">
