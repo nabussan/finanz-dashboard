@@ -1,9 +1,14 @@
+import json
+import subprocess
+import sys
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+import config
 import db
 from routers._cluster_shared import (
     parse_micro_import, classify_ibkr_coverage, upsert_cluster, insert_items,
@@ -35,14 +40,39 @@ async def _import_symbols(pool, list_id: int, content: str) -> tuple[int, int]:
 @router.get("/micro-listen", response_class=HTMLResponse)
 async def micro_listen_default(request: Request):
     pool = await db.get_pool()
-    first = await pool.fetchrow(
-        "SELECT id FROM clusters WHERE kind = $1 ORDER BY id LIMIT 1", _KIND
+    rows = await pool.fetch(
+        """
+        SELECT c.id, c.name,
+               COUNT(ci.tv_symbol) AS item_count
+        FROM clusters c
+        LEFT JOIN cluster_items ci ON ci.cluster_id = c.id
+        WHERE c.kind = $1
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+        """,
+        _KIND,
     )
-    if first:
-        return RedirectResponse(f"/micro-listen/{first['id']}", status_code=302)
+    all_lists = [dict(r) for r in rows]
+
+    # Fetch-Status für jede Liste aus Progress-Files
+    for lst in all_lists:
+        pf = _progress_file(lst["id"])
+        if pf.exists():
+            try:
+                lst["fetch_status"] = json.loads(pf.read_text(encoding="utf-8"))
+            except Exception:
+                lst["fetch_status"] = None
+        else:
+            lst["fetch_status"] = None
+
+    if not all_lists:
+        return templates.TemplateResponse(
+            request, "micro_lists.html",
+            {"all_lists": [], "active_list": None},
+        )
     return templates.TemplateResponse(
         request, "micro_lists.html",
-        {"all_lists": [], "items": [], "active_list": None},
+        {"all_lists": all_lists, "active_list": None},
     )
 
 
@@ -65,7 +95,7 @@ async def micro_listen_page(request: Request, list_id: int,
     pool = await db.get_pool()
 
     all_lists = [dict(r) for r in await pool.fetch(
-        "SELECT id, name FROM clusters WHERE kind = $1 ORDER BY id", _KIND
+        "SELECT id, name FROM clusters WHERE kind = $1 ORDER BY name", _KIND
     )]
     active_list = next((l for l in all_lists if l["id"] == list_id), None)
     if active_list is None:
@@ -78,6 +108,27 @@ async def micro_listen_page(request: Request, list_id: int,
     resolved_items = [i for i in items if i["ibkr_status"] == "resolved"]
     unresolved_items = [i for i in items if i["ibkr_status"] != "resolved"]
 
+    # Pipeline-Status für dieses Cluster
+    pf = _progress_file(list_id)
+    fetch_status = None
+    if pf.exists():
+        try:
+            fetch_status = json.loads(pf.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    cluster_json = config.MICRO_CLUSTER_DIR / f"{list_id}.json"
+    rank_status = None
+    if cluster_json.exists():
+        try:
+            cj = json.loads(cluster_json.read_text(encoding="utf-8"))
+            rank_status = {"scored_at": cj.get("scored_at"), "count": len(cj.get("tickers", []))}
+            if fetch_status and fetch_status.get("finished_at") and cj.get("scored_at"):
+                if fetch_status["finished_at"] > cj["scored_at"]:
+                    rank_status["stale"] = True
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         request, "micro_lists.html",
         {
@@ -87,6 +138,8 @@ async def micro_listen_page(request: Request, list_id: int,
             "unresolved_items": unresolved_items,
             "imported_resolved": resolved,
             "imported_unresolved": unresolved,
+            "fetch_status": fetch_status,
+            "rank_status": rank_status,
         },
     )
 
@@ -119,3 +172,88 @@ async def delete_micro_list_item(list_id: int, tv_symbol: str = Form(...)):
     pool = await db.get_pool()
     await delete_item(pool, list_id, tv_symbol)
     return RedirectResponse(f"/micro-listen/{list_id}", status_code=303)
+
+
+# ── Pipeline-Endpoints ────────────────────────────────────────────────────────
+
+def _progress_file(list_id: int) -> Path:
+    config.MICRO_CLUSTER_DIR.mkdir(parents=True, exist_ok=True)
+    return config.MICRO_CLUSTER_DIR / f"{list_id}.fetch_status.json"
+
+
+def _start_fetch(list_id: int) -> None:
+    """Startet fetch_fundamentals.py als entkoppelten Subprocess."""
+    pf = _progress_file(list_id)
+    pf.write_text(json.dumps({
+        "cluster_id": list_id, "status": "running",
+        "total": 0, "to_scrape": 0, "done": 0, "skipped": 0,
+        "errors": 0, "error_log": [],
+        "started_at": datetime.now().isoformat(), "finished_at": None,
+    }, ensure_ascii=False), encoding="utf-8")
+    subprocess.Popen(
+        [
+            sys.executable, str(config.MICRO_SCRAPER_PATH),
+            "--cluster-id", str(list_id),
+            "--db-url", config.DB_URL,
+            "--json-dir", str(config.MICRO_JSON_DIR),
+            "--config", str(config.MICRO_CONFIG_PATH),
+            "--progress-file", str(pf),
+        ],
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+@router.post("/micro-listen/{list_id}/fetch")
+async def fetch_micro_list(list_id: int):
+    """Startet den TV-Playwright-Scraper für eine einzelne Micro-Liste."""
+    _start_fetch(list_id)
+    return RedirectResponse(f"/micro-listen/{list_id}", status_code=303)
+
+
+@router.post("/micro-listen/fetch-multi")
+async def fetch_multi(list_ids: str = Form(...)):
+    """
+    Startet sequentielle Fetches für mehrere Listen (Checkbox-Auswahl aus der Übersicht).
+    list_ids: kommagetrennte IDs, z.B. "3,7,12"
+    """
+    ids = [int(x.strip()) for x in list_ids.split(",") if x.strip().isdigit()]
+    for lid in ids:
+        _start_fetch(lid)
+    return RedirectResponse("/micro-listen", status_code=303)
+
+
+@router.get("/micro-listen/{list_id}/pipeline-status")
+async def pipeline_status(list_id: int):
+    """Gibt aktuellen Fetch- und Rank-Status als JSON zurück (für HTMX-Polling)."""
+    # Fetch-Status aus Progress-File
+    pf = _progress_file(list_id)
+    if pf.exists():
+        try:
+            fetch_data = json.loads(pf.read_text(encoding="utf-8"))
+        except Exception:
+            fetch_data = {"status": "idle"}
+    else:
+        fetch_data = {"status": "idle"}
+
+    # Rank-Status aus Cluster-JSON
+    cluster_json = config.MICRO_CLUSTER_DIR / f"{list_id}.json"
+    if cluster_json.exists():
+        try:
+            cj = json.loads(cluster_json.read_text(encoding="utf-8"))
+            rank_data = {
+                "status": "done",
+                "scored_at": cj.get("scored_at"),
+                "count": len(cj.get("tickers", [])),
+            }
+            # Als veraltet markieren wenn Fetch neuer als letzter Rank
+            if fetch_data.get("finished_at") and cj.get("scored_at"):
+                if fetch_data["finished_at"] > cj["scored_at"]:
+                    rank_data["status"] = "stale"
+        except Exception:
+            rank_data = {"status": "idle"}
+    else:
+        rank_data = {"status": "idle"}
+
+    return JSONResponse({"fetch": fetch_data, "rank": rank_data})

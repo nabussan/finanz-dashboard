@@ -6,6 +6,10 @@
 {# ── Header: Listen-Tabs + Toolbar ─────────────────────────────── #}
 <div class="wl-header">
   <nav class="tab-nav">
+    <a href="/micro-listen"
+       class="tab-link{% if active_list is none %} tab-link--active{% endif %}">
+      Übersicht
+    </a>
     {% for ml in all_lists %}
     <span class="tab-item">
       <a href="/micro-listen/{{ ml.id }}"
@@ -44,9 +48,110 @@
 </div>
 {% endif %}
 
+{# ══════════════════════════════════════════════════════════════════
+   ÜBERSICHT (kein active_list)
+   ══════════════════════════════════════════════════════════════════ #}
 {% if active_list is none %}
-  <div class="wl-empty">Noch keine Micro-Listen — Datei hochladen oder oben anlegen.</div>
 
+{% if not all_lists %}
+  <div class="wl-empty">Noch keine Micro-Listen — Datei hochladen oder oben anlegen.</div>
+{% else %}
+<div style="padding: 12px;">
+  <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
+    Wähle Listen aus und starte die Pipeline (Datenholen → Ranking) für alle ausgewählten gleichzeitig.
+    Playwright: ~2 Ticker/Min.
+  </p>
+
+  <form method="post" action="/micro-listen/fetch-multi" id="multi-fetch-form">
+    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border); color:var(--muted);">
+          <th style="width:32px; padding:4px 6px;">
+            <input type="checkbox" id="check-all" onchange="toggleAll(this)" title="Alle auswählen">
+          </th>
+          <th style="text-align:left; padding:4px 6px;">Liste</th>
+          <th style="text-align:right; padding:4px 6px;">Ticker</th>
+          <th style="text-align:left; padding:4px 10px;">Letzter Fetch</th>
+          <th style="text-align:left; padding:4px 6px;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ml in all_lists %}
+        {% set fs = ml.fetch_status %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:4px 6px; text-align:center;">
+            <input type="checkbox" name="ids" value="{{ ml.id }}" class="list-check">
+          </td>
+          <td style="padding:4px 6px;">
+            <a href="/micro-listen/{{ ml.id }}" style="color:var(--accent);">{{ ml.name }}</a>
+          </td>
+          <td style="padding:4px 6px; text-align:right; color:var(--muted);">{{ ml.item_count }}</td>
+          <td style="padding:4px 10px; color:var(--muted);">
+            {% if fs and fs.finished_at %}
+              {{ fs.finished_at[:16].replace('T',' ') }}
+            {% elif fs and fs.status == 'running' %}
+              läuft…
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td style="padding:4px 6px;">
+            {% if fs %}
+              {% if fs.status == 'running' %}
+                <span class="admin-btn-dot admin-btn--status-yellow" title="läuft"></span>
+                {{ fs.done }}/{{ fs.to_scrape }}
+              {% elif fs.status == 'done' %}
+                <span class="admin-btn-dot admin-btn--status-green" title="OK"></span>
+                {{ fs.done }} OK{% if fs.errors > 0 %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}
+                {% if fs.skipped > 0 %} / {{ fs.skipped }} skip{% endif %}
+              {% elif fs.status == 'error' %}
+                <span class="admin-btn-dot admin-btn--status-red" title="Fehler"></span>
+                Fehler
+              {% endif %}
+            {% else %}
+              <span class="admin-btn-dot" style="background:var(--muted);" title="nie gefetcht"></span>
+              nie
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+      <input type="hidden" name="list_ids" id="selected-ids-input" value="">
+      <button type="submit" class="btn-primary" id="multi-fetch-btn"
+              onclick="return prepareMultiFetch()"
+              style="font-size:12px; padding:5px 14px;">
+        ▶ Datenholen für ausgewählte Listen
+      </button>
+      <span style="font-size:11px; color:var(--muted);" id="selected-count"></span>
+    </div>
+  </form>
+</div>
+
+<script>
+function toggleAll(cb) {
+  document.querySelectorAll('.list-check').forEach(c => c.checked = cb.checked);
+  updateCount();
+}
+function updateCount() {
+  const n = document.querySelectorAll('.list-check:checked').length;
+  document.getElementById('selected-count').textContent = n ? n + ' ausgewählt' : '';
+}
+document.querySelectorAll('.list-check').forEach(c => c.addEventListener('change', updateCount));
+function prepareMultiFetch() {
+  const ids = [...document.querySelectorAll('.list-check:checked')].map(c => c.value);
+  if (!ids.length) { alert('Keine Liste ausgewählt.'); return false; }
+  document.getElementById('selected-ids-input').value = ids.join(',');
+  return true;
+}
+</script>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════════════════
+   EINZELNE LISTE
+   ══════════════════════════════════════════════════════════════════ #}
 {% else %}
 <div style="padding: 12px;">
 
@@ -100,6 +205,125 @@
               style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
     </form>
   </details>
+
+  {# ── Pipeline-Block ──────────────────────────────────────────────── #}
+  <div class="micro-pipeline" style="margin-top:20px; border:1px solid var(--border); border-radius:6px; padding:12px; background:var(--card-bg);">
+    <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:10px;">
+      Pipeline für „{{ active_list.name }}"
+    </div>
+
+    {# Fetch-Status #}
+    {% set fs = fetch_status %}
+    <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:10px;">
+      <form method="post" action="/micro-listen/{{ active_list.id }}/fetch">
+        <button type="submit" class="btn-secondary"
+                style="font-size:11px; padding:4px 10px; white-space:nowrap;"
+                {% if fs and fs.status == 'running' %}disabled{% endif %}>
+          ▶ Datenholen
+        </button>
+      </form>
+      <div style="font-size:11px;">
+        {% if fs %}
+          {% if fs.status == 'running' %}
+            <span class="admin-btn-dot admin-btn--status-yellow"></span>
+            läuft… {{ fs.done }}/{{ fs.to_scrape if fs.to_scrape else '?' }} Ticker
+            <span style="color:var(--muted);"> (~2/Min, {{ fs.to_scrape }} zu scrapen)</span>
+          {% elif fs.status == 'done' %}
+            <span class="admin-btn-dot admin-btn--status-green"></span>
+            {{ fs.done }} OK
+            {% if fs.errors > 0 %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}
+            {% if fs.skipped > 0 %} / {{ fs.skipped }} übersprungen{% endif %}
+            <span style="color:var(--muted); margin-left:6px;">{{ fs.finished_at[:16].replace('T',' ') if fs.finished_at }}</span>
+          {% elif fs.status == 'error' %}
+            <span class="admin-btn-dot admin-btn--status-red"></span>
+            Abgebrochen
+          {% endif %}
+        {% else %}
+          <span class="admin-btn-dot" style="background:var(--muted);"></span>
+          <span style="color:var(--muted);">noch nie ausgeführt</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Fehler-Tabelle Fetch #}
+    {% if fs and fs.error_log %}
+    <details style="margin: -4px 0 10px 110px;">
+      <summary style="font-size:11px; color:var(--red); cursor:pointer;">
+        {{ fs.errors }} Fehler anzeigen
+      </summary>
+      <table style="margin-top:4px; font-size:11px; border-collapse:collapse;">
+        {% for e in fs.error_log %}
+        <tr>
+          <td style="padding:2px 8px 2px 0; color:var(--text); font-family:monospace;">{{ e.ticker }}</td>
+          <td style="padding:2px 0; color:var(--muted);">{{ e.reason }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </details>
+    {% endif %}
+
+    {# Ranking-Status #}
+    {% set rs = rank_status %}
+    <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:6px;">
+      <form method="post" action="/micro/rank">
+        <input type="hidden" name="cluster_id" value="{{ active_list.id }}">
+        <button type="submit" class="btn-secondary"
+                style="font-size:11px; padding:4px 10px; white-space:nowrap;"
+                {% if fs and fs.status == 'running' %}disabled title="Erst Datenholen abwarten"{% endif %}>
+          ▶ Ranking
+        </button>
+      </form>
+      <div style="font-size:11px;">
+        {% if rs %}
+          {% if rs.stale %}
+            <span class="admin-btn-dot" style="background:var(--orange);"></span>
+            veraltet — {{ rs.count }} Ticker (vor neuem Fetch gerankt)
+            <span style="color:var(--muted); margin-left:6px;">{{ rs.scored_at[:16].replace('T',' ') if rs.scored_at }}</span>
+          {% else %}
+            <span class="admin-btn-dot admin-btn--status-green"></span>
+            {{ rs.count }} gerankt
+            <span style="color:var(--muted); margin-left:6px;">{{ rs.scored_at[:16].replace('T',' ') if rs.scored_at }}</span>
+          {% endif %}
+        {% else %}
+          <span class="admin-btn-dot" style="background:var(--muted);"></span>
+          <span style="color:var(--muted);">noch nicht berechnet</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="margin-top:10px; border-top:1px solid var(--border); padding-top:8px;">
+      <a href="/micro?cluster_id={{ active_list.id }}" class="btn-primary"
+         style="font-size:11px; padding:4px 12px; text-decoration:none; display:inline-block;">
+        → Ranking ansehen
+      </a>
+    </div>
+  </div>
+
+  {# HTMX: Pipeline-Status live aktualisieren wenn Fetch läuft #}
+  {% if fs and fs.status == 'running' %}
+  <div id="pipeline-poller"
+       hx-get="/micro-listen/{{ active_list.id }}/pipeline-status"
+       hx-trigger="every 3s"
+       hx-target="this"
+       style="display:none;"></div>
+  <script>
+  (function() {
+    function pollStatus() {
+      fetch('/micro-listen/{{ active_list.id }}/pipeline-status')
+        .then(r => r.json())
+        .then(d => {
+          if (d.fetch && d.fetch.status === 'running') {
+            setTimeout(pollStatus, 3000);
+          } else {
+            location.reload();
+          }
+        })
+        .catch(() => setTimeout(pollStatus, 5000));
+    }
+    setTimeout(pollStatus, 3000);
+  })();
+  </script>
+  {% endif %}
 
   <form method="post" action="/micro-listen/{{ active_list.id }}/delete"
         style="margin-top:16px; max-width:240px;"
