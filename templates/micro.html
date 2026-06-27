@@ -99,7 +99,7 @@
           data-ticker="{{ t.ticker }}"
           data-rank="{{ t.cluster_rank or 9999 }}"
           data-score="{{ t.ranking_score if t.ranking_score is not none else '' }}"
-          data-score-u="{{ t.score_universe if t.score_universe is not none else '' }}"
+          data-score-u="{{ t.score_universe if t.score_universe is defined and t.score_universe is not none else '' }}"
           data-trends="{{ t.score_trends if t.score_trends is not none and t.score_trends == t.score_trends else '' }}"
           data-cf="{{ t.score_cashflow if t.score_cashflow is not none and t.score_cashflow == t.score_cashflow else '' }}"
           data-profit="{{ t.score_profitability if t.score_profitability is not none and t.score_profitability == t.score_profitability else '' }}"
@@ -120,8 +120,9 @@
           {% else %}—{% endif %}
         </td>
         {% if active_cluster_id %}
-        <td class="{{ ampel('score', t.score_universe) }}" style="color:var(--muted);">
-          {{ "%.2f"|format(t.score_universe) if t.score_universe is not none and t.score_universe == t.score_universe else "—" }}
+        {%- set su = t.score_universe if t.score_universe is defined else none -%}
+        <td class="{{ ampel('score', su) }}" style="color:var(--muted);">
+          {{ "%.2f"|format(su) if su is not none and su == su else "—" }}
         </td>
         {% endif %}
         <td class="{{ ampel('trends', t.score_trends) }}">{{ "%.2f"|format(t.score_trends)        if t.score_trends is not none and t.score_trends == t.score_trends else "—" }}</td>
