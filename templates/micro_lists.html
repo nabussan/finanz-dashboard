@@ -25,9 +25,11 @@
   </div>
 </div>
 
+<div class="micro-lists-body">
+
 {# ── Import-Notice (Flash) ─────────────────────────────────────── #}
 {% if imported_resolved or imported_unresolved %}
-<div class="wl-notice{% if imported_unresolved %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 6px 12px 0;">
+<div class="wl-notice{% if imported_unresolved %} wl-notice--warn{% else %} wl-notice--ok{% endif %}" style="margin: 0 0 8px;">
   {{ imported_resolved }} Ticker IBKR-aufgelöst (Kursdaten werden geholt).
   {% if imported_unresolved %}
     <strong>{{ imported_unresolved }} zur manuellen Prüfung</strong> — unbekannte Exchange oder falsches Format (kein <code>EXCHANGE:TICKER</code>).
@@ -43,7 +45,6 @@
 {% if not all_lists %}
   <div class="wl-empty">Noch keine Micro-Listen — Datei hochladen oder oben anlegen.</div>
 {% else %}
-<div style="padding: 12px;">
   <p style="font-size:12px; color:var(--muted); margin:0 0 10px;">
     Wähle Listen aus und starte die Pipeline (Datenholen → Ranking) für alle ausgewählten gleichzeitig.
     Playwright: ~2 Ticker/Min.
@@ -132,7 +133,6 @@
       <b>4. Hier:</b> ⟳ Ranking → Score + Ranking berechnen → „→ ansehen" öffnet /micro
     </div>
   </details>
-</div>
 
 <script>
 (function() {
@@ -201,7 +201,6 @@ if (running.length) {
    EINZELNE LISTE
    ══════════════════════════════════════════════════════════════════ #}
 {% else %}
-<div style="padding: 12px;">
 
   <h3 style="font-size:13px; color:var(--text); margin: 0 0 8px;">
     IBKR-getrackt <span class="badge badge--buy">{{ resolved_items|length }}</span>
@@ -402,7 +401,7 @@ if (running.length) {
     </a>
   </div>
 
-</div>
 {% endif %}
 
+</div>{# end .micro-lists-body #}
 {% endblock %}
