@@ -176,6 +176,81 @@ async def test_weekly_link_in_daily(client):
     assert "portfolio.html" not in r.text or "/portfolio-charts" in r.text
 
 
+# ── Clusters ─────────────────────────────────────────────────────────────────
+
+
+async def test_clusters_page(client):
+    r = await client.get("/clusters")
+    assert r.status_code == 200
+    assert "Cluster" in r.text
+
+
+async def test_cluster_create_assign_delete(client):
+    """Cluster anlegen, View zuweisen, Ticker importieren, löschen."""
+    # Anlegen
+    r = await client.post("/clusters", data={"name": "_test_cluster_"}, follow_redirects=False)
+    assert r.status_code in (302, 303)
+    cid = int(r.headers["location"].split("#")[-1])
+
+    # Ticker importieren
+    r = await client.post(
+        f"/clusters/{cid}/import",
+        data={"content": "NASDAQ:MSFT,NYSE:SPY", "mode": "tv"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+
+    # View zuweisen
+    r = await client.post(
+        f"/clusters/{cid}/assign",
+        data={"view_name": "watchlist"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+
+    # Clusters-Seite zeigt Cluster + View-Badge
+    r = await client.get("/clusters")
+    assert r.status_code == 200
+    assert "_test_cluster_" in r.text
+    assert "watchlist" in r.text
+
+    # Watchlists-Seite zeigt Cluster
+    r = await client.get("/watchlists", follow_redirects=True)
+    assert r.status_code == 200
+
+    # View wieder entfernen
+    r = await client.post(
+        f"/clusters/{cid}/unassign",
+        data={"view_name": "watchlist"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+
+    # Löschen
+    r = await client.post(f"/clusters/{cid}/delete", follow_redirects=False)
+    assert r.status_code in (302, 303)
+
+
+async def test_cluster_upload(client):
+    """Datei-Upload: Dateiname → Cluster-Name, Inhalt → Ticker."""
+    import io
+    content = b"NASDAQ:MSFT,NASDAQ:GOOG"
+    r = await client.post(
+        "/clusters/upload",
+        files={"file": ("_test_upload_.txt", io.BytesIO(content), "text/plain")},
+        data={"mode": "tv"},
+        follow_redirects=False,
+    )
+    assert r.status_code in (302, 303)
+    cid = int(r.headers["location"].split("#")[-1])
+
+    r = await client.get("/clusters")
+    assert r.status_code == 200
+    assert "_test_upload_" in r.text
+
+    await client.post(f"/clusters/{cid}/delete")
+
+
 # ── Watchlists ───────────────────────────────────────────────────────────────
 
 
@@ -189,69 +264,6 @@ async def test_watchlists_redirect(client):
 async def test_watchlist_page_loads(client):
     r = await client.get("/watchlists", follow_redirects=True)
     assert r.status_code == 200
-
-
-
-async def test_watchlist_create_and_delete(client):
-    """Anlegen und Löschen einer Test-Watchlist."""
-    # Anlegen
-    r = await client.post("/watchlists", data={"name": "_test_pytest_"}, follow_redirects=False)
-    assert r.status_code in (302, 303)
-    location = r.headers.get("location", "")
-    assert "/watchlists/" in location
-
-    wl_id = int(location.rsplit("/", 1)[-1])
-
-    # Seite laden
-    r = await client.get(f"/watchlists/{wl_id}")
-    assert r.status_code == 200
-    assert "_test_pytest_" in r.text
-
-    # Löschen
-    r = await client.post(f"/watchlists/{wl_id}/delete", follow_redirects=False)
-    assert r.status_code in (302, 303)
-
-    # Danach nicht mehr vorhanden
-    r = await client.get(f"/watchlists/{wl_id}", follow_redirects=False)
-    assert r.status_code in (302, 404)
-
-
-
-async def test_watchlist_import(client):
-    """TV-Format-Import: kommagetrennte Symbole."""
-    r = await client.post("/watchlists", data={"name": "_test_import_"}, follow_redirects=False)
-    wl_id = int(r.headers["location"].rsplit("/", 1)[-1])
-
-    r = await client.post(
-        f"/watchlists/{wl_id}/import",
-        data={"content": "NASDAQ:AAPL,NYSE:SPY"},
-        follow_redirects=True,
-    )
-    assert r.status_code == 200
-    assert "NASDAQ:AAPL" in r.text or "AAPL" in r.text
-
-    # Aufräumen
-    await client.post(f"/watchlists/{wl_id}/delete")
-
-
-
-async def test_watchlist_upload(client):
-    """Datei-Upload: Dateiname → Watchlist-Name, Inhalt → Ticker."""
-    import io
-    content = b"NASDAQ:MSFT,NASDAQ:GOOG"
-    r = await client.post(
-        "/watchlists/upload",
-        files={"file": ("_test_upload_.txt", io.BytesIO(content), "text/plain")},
-        follow_redirects=False,
-    )
-    assert r.status_code in (302, 303)
-    wl_id = int(r.headers["location"].split("?")[0].rsplit("/", 1)[-1])
-
-    r = await client.get(f"/watchlists/{wl_id}")
-    assert r.status_code == 200
-    assert "_test_upload_" in r.text
-
-    await client.post(f"/watchlists/{wl_id}/delete")
 
 
 # ── Micro-Listen ──────────────────────────────────────────────────────────────
@@ -275,16 +287,19 @@ async def test_micro_listen_upload_resolved_and_unresolved(client):
     """Upload mit gemischtem Format: gueltige + ungueltige Eintraege werden getrennt,
     nicht stillschweigend verworfen (Lehre aus dem RMV_LSE-Bug)."""
     r = await client.post(
-        "/micro-listen",
+        "/clusters",
         data={"name": "_test_micro_listen_"},
         follow_redirects=False,
     )
     assert r.status_code in (302, 303)
-    list_id = int(r.headers["location"].rsplit("/", 1)[-1])
+    list_id = int(r.headers["location"].split("#")[-1])
 
+    # View zuweisen + Ticker importieren (Micro-Modus)
+    await client.post(f"/clusters/{list_id}/assign", data={"view_name": "micro"})
     r = await client.post(
-        f"/micro-listen/{list_id}/import",
-        data={"content": "NYSE:AAPL,RMV_LSE,XXXX:FOO"},
+        f"/clusters/{list_id}/import",
+        data={"content": "NYSE:AAPL,RMV_LSE,XXXX:FOO", "mode": "micro",
+              "next": f"/micro-listen/{list_id}"},
         follow_redirects=True,
     )
     assert r.status_code == 200
@@ -293,7 +308,7 @@ async def test_micro_listen_upload_resolved_and_unresolved(client):
     assert "AAPL" in r.text
     assert "RMV_LSE" in r.text  # ungueltiger Eintrag bleibt sichtbar, nicht verworfen
 
-    await client.post(f"/micro-listen/{list_id}/delete")
+    await client.post(f"/clusters/{list_id}/delete")
 
 
 async def test_micro_listen_delete_keeps_fundamentals(client):
@@ -303,16 +318,18 @@ async def test_micro_listen_delete_keeps_fundamentals(client):
     pool = await db.get_pool()
 
     r = await client.post(
-        "/micro-listen",
+        "/clusters",
         data={"name": "_test_micro_delete_"},
         follow_redirects=False,
     )
-    list_id = int(r.headers["location"].rsplit("/", 1)[-1])
-    await client.post(f"/micro-listen/{list_id}/import", data={"content": "NYSE:AAPL"})
+    list_id = int(r.headers["location"].split("#")[-1])
+    await client.post(f"/clusters/{list_id}/assign", data={"view_name": "micro"})
+    await client.post(f"/clusters/{list_id}/import",
+                      data={"content": "NYSE:AAPL", "mode": "micro"})
 
     before = await pool.fetchval("SELECT COUNT(*) FROM fundamentals WHERE ticker = 'AAPL'")
 
-    await client.post(f"/micro-listen/{list_id}/delete")
+    await client.post(f"/clusters/{list_id}/delete")
 
     after = await pool.fetchval("SELECT COUNT(*) FROM fundamentals WHERE ticker = 'AAPL'")
     assert before == after
@@ -367,20 +384,17 @@ async def test_db_watchlist_join(client):
     """Watchlist-Ticker müssen via tv_symbol auf signals joinen (nicht bare ticker)."""
     import db
     pool = await db.get_pool()
-    # Prüfe ob Join auf tv_symbol Treffer liefert (falls Watchlist befüllt)
     count_wl = await pool.fetchval(
-        "SELECT COUNT(*) FROM cluster_items ci JOIN clusters c ON c.id = ci.cluster_id WHERE c.kind = 'watchlist'"
+        """SELECT COUNT(*) FROM cluster_items ci
+           JOIN cluster_views cv ON cv.cluster_id = ci.cluster_id
+           WHERE cv.view_name = 'watchlist'"""
     )
     if count_wl == 0:
         pytest.skip("Keine Watchlist-Einträge zum Testen")
-    hits = await pool.fetchval("""
-        SELECT COUNT(*) FROM cluster_items ci
-        JOIN clusters c ON c.id = ci.cluster_id
-        WHERE c.kind = 'watchlist'
-        AND EXISTS (
-            SELECT 1 FROM signals WHERE ticker = ci.tv_symbol
-        )
-    """)
-    # Mindestens ein Treffer erwartet (wenn Signale und Watchlist befüllt)
-    # Kein harter Assert — loggt nur als Info
+    hits = await pool.fetchval(
+        """SELECT COUNT(*) FROM cluster_items ci
+           JOIN cluster_views cv ON cv.cluster_id = ci.cluster_id
+           WHERE cv.view_name = 'watchlist'
+           AND EXISTS (SELECT 1 FROM signals WHERE ticker = ci.tv_symbol)"""
+    )
     print(f"Watchlist-Treffer in signals: {hits}/{count_wl}")

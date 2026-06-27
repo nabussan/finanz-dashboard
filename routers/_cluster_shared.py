@@ -62,15 +62,37 @@ def parse_micro_import(content: str) -> list[str]:
     return list(dict.fromkeys(parts))  # deduplicate, preserve order
 
 
-async def upsert_cluster(pool, name: str, kind: str) -> int:
+async def upsert_cluster(pool, name: str) -> int:
     """Create cluster if not exists, return id."""
     row = await pool.fetchrow(
-        "INSERT INTO clusters (name, kind) VALUES ($1, $2) "
-        "ON CONFLICT (name, kind) DO NOTHING RETURNING id",
-        name, kind,
+        "INSERT INTO clusters (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id",
+        name,
     )
     return row["id"] if row else await pool.fetchval(
-        "SELECT id FROM clusters WHERE name = $1 AND kind = $2", name, kind
+        "SELECT id FROM clusters WHERE name = $1", name
+    )
+
+
+async def assign_view(pool, cluster_id: int, view_name: str) -> None:
+    await pool.execute(
+        "INSERT INTO cluster_views (cluster_id, view_name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        cluster_id, view_name,
+    )
+
+
+async def unassign_view(pool, cluster_id: int, view_name: str) -> None:
+    await pool.execute(
+        "DELETE FROM cluster_views WHERE cluster_id = $1 AND view_name = $2",
+        cluster_id, view_name,
+    )
+
+
+async def load_clusters_for_view(pool, view_name: str) -> list:
+    return await pool.fetch(
+        """SELECT c.id, c.name FROM clusters c
+           JOIN cluster_views cv ON cv.cluster_id = c.id
+           WHERE cv.view_name = $1 ORDER BY c.id""",
+        view_name,
     )
 
 

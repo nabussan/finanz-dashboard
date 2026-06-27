@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
+from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
@@ -163,6 +163,7 @@ templates.env.globals.update(
     rend_class=_rend_class,
 )
 
+app.include_router(clusters.router)
 app.include_router(disco.router)
 app.include_router(rsm.router)
 app.include_router(portfolio.router)
@@ -354,6 +355,13 @@ async def admin_run(task: str):
         subprocess.Popen(["bash", script], cwd=str(RSM_DIR), start_new_session=True)
         # 'full' braucht keine PID-Datei -- _task_running() prueft stattdessen
         # ondemand_update.sh's eigenes flock-Lock direkt (siehe _pipeline_status()).
+    elif task == "eod":
+        # eod-Update immer mit anschliessender Chart-Regenerierung verketten:
+        # Neue Watchlist-Ticker erscheinen in portfolio.html nur nach make_charts.py.
+        # bash-Subprozess haelt die PID-Datei bis beide Schritte abgeschlossen sind.
+        cmd = f"{venv_python} src/eod_update.py --skip-ibkr && {venv_python} src/make_charts.py"
+        proc = subprocess.Popen(["bash", "-c", cmd], cwd=str(RSM_DIR), start_new_session=True)
+        (RSM_DIR / "data" / f".run_{task}.pid").write_text(str(proc.pid))
     else:
         _, args = _PIPELINE_TASKS[task]
         proc = subprocess.Popen([venv_python] + args, cwd=str(RSM_DIR), start_new_session=True)

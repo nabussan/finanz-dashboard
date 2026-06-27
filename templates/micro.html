@@ -14,10 +14,7 @@
 
   <div class="wl-toolbar" style="margin-left:auto; display:flex; align-items:center; gap:6px;">
     <a href="/micro-listen" class="btn-secondary">▶ Datenholen</a>
-    <form method="post" action="/micro-listen" class="wl-new-form">
-      <input type="text" name="name" placeholder="Neue Liste…" required class="wl-name-input" style="width:120px;">
-      <button type="submit" class="btn-secondary">+ Anlegen</button>
-    </form>
+    <a href="/clusters" class="btn-secondary">⚙ Cluster</a>
     <form method="post"
           action="/micro/rank{% if active_cluster_id %}?cluster_id={{ active_cluster_id }}{% endif %}"
           style="display:inline;">

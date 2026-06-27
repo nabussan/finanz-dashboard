@@ -123,12 +123,17 @@ CREATE TABLE IF NOT EXISTS macro_context (
 CREATE TABLE IF NOT EXISTS clusters (
     id      SERIAL PRIMARY KEY,
     name    TEXT NOT NULL,
-    kind    TEXT NOT NULL,
     created TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (name, kind),
-    CHECK (kind = ANY (ARRAY['watchlist', 'portfolio_list', 'micro_list']))
+    CONSTRAINT clusters_name_unique UNIQUE (name)
 );
-CREATE INDEX IF NOT EXISTS clusters_kind_idx ON clusters (kind);
+
+CREATE TABLE IF NOT EXISTS cluster_views (
+    cluster_id  INTEGER NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+    view_name   TEXT    NOT NULL CHECK (view_name = ANY (ARRAY['watchlist', 'micro', 'portfolio'])),
+    assigned_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (cluster_id, view_name)
+);
+CREATE INDEX IF NOT EXISTS cluster_views_view_name_idx ON cluster_views (view_name);
 
 CREATE TABLE IF NOT EXISTS cluster_items (
     cluster_id  INTEGER NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,

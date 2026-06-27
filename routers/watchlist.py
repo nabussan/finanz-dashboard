@@ -1,22 +1,16 @@
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, Form, Request, UploadFile, File
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 import config
 import db
-from routers._cluster_shared import (
-    parse_tv_import, upsert_cluster, insert_items,
-    tickers_missing_prices, trigger_ondemand_update, trigger_reclassify,
-    delete_item, delete_cluster,
-)
+from routers._cluster_shared import trigger_reclassify
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
-_KIND = "watchlist"
 
 
 def _score_class(v):
@@ -57,7 +51,9 @@ def _anchor(tv_symbol: str) -> str:
 async def watchlists_default(request: Request):
     pool = await db.get_pool()
     first = await pool.fetchrow(
-        "SELECT id FROM clusters WHERE kind = $1 ORDER BY id LIMIT 1", _KIND
+        """SELECT c.id FROM clusters c
+           JOIN cluster_views cv ON cv.cluster_id = c.id
+           WHERE cv.view_name = 'watchlist' ORDER BY c.id LIMIT 1"""
     )
     if first:
         return RedirectResponse(f"/watchlists/{first['id']}", status_code=302)
@@ -68,31 +64,14 @@ async def watchlists_default(request: Request):
     )
 
 
-# NOTE: /watchlists/upload must be defined BEFORE /watchlists/{wl_id}
-@router.post("/watchlists/upload")
-async def upload_watchlist(file: UploadFile = File(...)):
-    """Upload a .txt file — filename becomes watchlist name, content is comma/newline-separated symbols."""
-    wl_name = Path(file.filename).stem
-    content = (await file.read()).decode("utf-8", errors="ignore")
-    symbols = parse_tv_import(content)
-
-    pool = await db.get_pool()
-    wl_id = await upsert_cluster(pool, wl_name, _KIND)
-    await insert_items(pool, wl_id, symbols)
-
-    missing = await tickers_missing_prices(pool, wl_id)
-    if missing:
-        trigger_ondemand_update()
-    return RedirectResponse(f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303)
-
-
 @router.get("/watchlists/{wl_id}", response_class=HTMLResponse)
-async def watchlist_page(request: Request, wl_id: int,
-                         imported: int = 0, missing: int = 0):
+async def watchlist_page(request: Request, wl_id: int, reclassify: int = 0):
     pool = await db.get_pool()
 
     all_wl = [dict(r) for r in await pool.fetch(
-        "SELECT id, name FROM clusters WHERE kind = $1 ORDER BY id", _KIND
+        """SELECT c.id, c.name FROM clusters c
+           JOIN cluster_views cv ON cv.cluster_id = c.id
+           WHERE cv.view_name = 'watchlist' ORDER BY c.id"""
     )]
     active_wl = next((w for w in all_wl if w["id"] == wl_id), None)
     if active_wl is None:
@@ -134,47 +113,12 @@ async def watchlist_page(request: Request, wl_id: int,
             "all_watchlists": all_wl,
             "items": rows,
             "active_wl": active_wl,
-            "imported": imported,
-            "missing": missing,
             "charts_available": config.RSM_PORTFOLIO_HTML.exists(),
             "klasse_stand": klasse_stand,
             "ucits_map": config.UCITS_MAP,
+            "reclassify": reclassify,
         },
     )
-
-
-@router.post("/watchlists")
-async def create_watchlist(name: str = Form(...)):
-    pool = await db.get_pool()
-    wl_id = await upsert_cluster(pool, name.strip(), _KIND)
-    return RedirectResponse(f"/watchlists/{wl_id}", status_code=303)
-
-
-@router.post("/watchlists/{wl_id}/import")
-async def import_watchlist(wl_id: int, content: str = Form(...)):
-    symbols = parse_tv_import(content)
-    pool = await db.get_pool()
-    await insert_items(pool, wl_id, symbols)
-    missing = await tickers_missing_prices(pool, wl_id)
-    if missing:
-        trigger_ondemand_update()
-    return RedirectResponse(
-        f"/watchlists/{wl_id}?imported={len(symbols)}&missing={len(missing)}", status_code=303
-    )
-
-
-@router.post("/watchlists/{wl_id}/delete")
-async def delete_watchlist(wl_id: int):
-    pool = await db.get_pool()
-    await delete_cluster(pool, wl_id)
-    return RedirectResponse("/watchlists", status_code=303)
-
-
-@router.post("/watchlists/{wl_id}/delete-item")
-async def delete_watchlist_item(wl_id: int, tv_symbol: str = Form(...)):
-    pool = await db.get_pool()
-    await delete_item(pool, wl_id, tv_symbol)
-    return RedirectResponse(f"/watchlists/{wl_id}", status_code=303)
 
 
 @router.post("/watchlists/{wl_id}/reclassify")

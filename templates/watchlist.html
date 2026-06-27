@@ -12,7 +12,7 @@
          class="tab-link{% if active_wl and active_wl.id == wl.id %} tab-link--active{% endif %}">
         {{ wl.name }}
       </a>
-      <form method="post" action="/watchlists/{{ wl.id }}/delete" class="tab-delete-form"
+      <form method="post" action="/clusters/{{ wl.id }}/delete" class="tab-delete-form"
             onsubmit="return confirm('Watchlist »{{ wl.name }}« löschen?')">
         <button type="submit" class="tab-delete-btn" title="Watchlist löschen">×</button>
       </form>
@@ -21,16 +21,7 @@
   </nav>
 
   <div class="wl-toolbar">
-    <form method="post" action="/watchlists/upload" enctype="multipart/form-data">
-      <label class="btn-secondary wl-file-label" title="TradingView .txt hochladen — Dateiname = Watchlist-Name">
-        ⊕ Datei
-        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
-      </label>
-    </form>
-    <form method="post" action="/watchlists" class="wl-new-form">
-      <input type="text" name="name" placeholder="Neue Watchlist…" required class="wl-name-input" style="width:140px;">
-      <button type="submit" class="btn-secondary">+ Anlegen</button>
-    </form>
+    <a href="/clusters" class="btn-secondary" style="font-size:12px; padding:4px 10px; text-decoration:none;">⚙ Cluster verwalten</a>
     {% if klasse_stand %}<span class="rsm-run-date">Klasse: {{ klasse_stand.strftime('%d.%m.%Y') }}</span>{% endif %}
   </div>
 </div>
@@ -121,9 +112,10 @@
         <div>
           <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">Ticker entfernen:</div>
           {% for p in items %}
-          <form method="post" action="/watchlists/{{ active_wl.id }}/delete-item"
+          <form method="post" action="/clusters/{{ active_wl.id }}/delete-item"
                 class="inline-form" style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">
             <input type="hidden" name="tv_symbol" value="{{ p.tv_symbol }}">
+            <input type="hidden" name="next" value="/watchlists/{{ active_wl.id }}">
             <span style="font-size:11px; flex:1;">{{ p.tv_symbol }}</span>
             <button type="submit" class="btn-delete" title="Entfernen">×</button>
           </form>
@@ -131,18 +123,12 @@
         </div>
         {% endif %}
 
-        <details>
-          <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Importieren…</summary>
-          <form method="post" action="/watchlists/{{ active_wl.id }}/import" style="margin-top:6px;">
-            <textarea name="content" rows="4"
-                      style="width:100%; background:var(--bg); color:var(--text);
-                             border:1px solid var(--border); border-radius:4px;
-                             padding:4px; font-size:11px; font-family:monospace;"
-                      placeholder="NASDAQ:AAPL,NYSE:SPY"></textarea>
-            <button type="submit" class="btn-primary"
-                    style="margin-top:4px; font-size:11px; padding:4px 10px;">Importieren</button>
-          </form>
-        </details>
+        <div style="margin: 6px 0 4px;">
+          <a href="/clusters#cluster-{{ active_wl.id }}" class="btn-secondary"
+             style="font-size:11px; padding:3px 8px; text-decoration:none; display:inline-block;">
+            ⚙ Importieren / Löschen → Cluster-Verwaltung
+          </a>
+        </div>
 
         {% if items %}
         <form method="post" action="/watchlists/{{ active_wl.id }}/reclassify">
@@ -153,14 +139,6 @@
           </button>
         </form>
         {% endif %}
-
-        <form method="post" action="/watchlists/{{ active_wl.id }}/delete"
-              onsubmit="return confirm('Watchlist »{{ active_wl.name }}« und alle {{ items|length }} Einträge löschen?')">
-          <button type="submit" class="btn-danger"
-                  style="font-size:11px; padding:4px 10px; width:100%;">
-            Watchlist löschen
-          </button>
-        </form>
 
       </div>
     </details>
