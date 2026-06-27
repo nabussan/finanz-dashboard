@@ -103,8 +103,7 @@ async def unassign_cluster_view(cid: int, view_name: str = Form(...)):
 async def _do_import(pool, cluster_id: int, content: str, mode: str) -> None:
     if mode == "micro":
         symbols = parse_micro_import(content)
-        statuses = [classify_ibkr_coverage(s) for s in symbols]
-        await insert_items(pool, cluster_id, symbols, statuses)
     else:
         symbols = parse_tv_import(content)
-        await insert_items(pool, cluster_id, symbols)
+    statuses = [classify_ibkr_coverage(s) for s in symbols]
+    await insert_items(pool, cluster_id, symbols, statuses)
