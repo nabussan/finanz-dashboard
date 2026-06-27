@@ -118,6 +118,31 @@ CREATE TABLE IF NOT EXISTS macro_context (
     m2_yoy      NUMERIC
 );
 
+-- ─── Cluster: Watchlists / PF-Listen / Micro-Listen ─────────────────────────
+
+CREATE TABLE IF NOT EXISTS clusters (
+    id      SERIAL PRIMARY KEY,
+    name    TEXT NOT NULL,
+    kind    TEXT NOT NULL,
+    created TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (name, kind),
+    CHECK (kind = ANY (ARRAY['watchlist', 'portfolio_list', 'micro_list']))
+);
+CREATE INDEX IF NOT EXISTS clusters_kind_idx ON clusters (kind);
+
+CREATE TABLE IF NOT EXISTS cluster_items (
+    cluster_id  INTEGER NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+    tv_symbol   TEXT NOT NULL,
+    ticker      TEXT GENERATED ALWAYS AS (split_part(tv_symbol, ':', 2)) STORED,
+    added       TIMESTAMPTZ DEFAULT now(),
+    klasse      TEXT,
+    benchmark   TEXT DEFAULT 'AMEX:SPY',
+    notizen     TEXT,
+    ibkr_status TEXT DEFAULT 'resolved',
+    PRIMARY KEY (cluster_id, tv_symbol)
+);
+CREATE INDEX IF NOT EXISTS cluster_items_ticker_idx ON cluster_items (ticker);
+
 -- ─── Micro / Fundamentals ────────────────────────────────────────────────────
 
 -- source: 'tv' (TradingView-Scraper), 'ibkr', 'reuters'
