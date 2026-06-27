@@ -93,7 +93,7 @@
             {% elif fs and fs.status == 'done' %}
               <span class="admin-btn-dot admin-btn--status-green"></span>
               <span style="color:var(--muted); font-size:11px;">
-                {{ fs.done }} OK{% if fs.skipped_etf %} / {{ fs.skipped_etf }} ETF{% endif %}{% if fs.errors %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}{% if fs.skipped %} / {{ fs.skipped }} Cooldown{% endif %}
+                {{ fs.done }} OK{% if fs.skipped_etf %} / {{ fs.skipped_etf }} ETF{% endif %}{% if fs.errors %} / <span style="color:var(--red); cursor:help;" title="{{ fs.error_log | map(attribute='ticker') | join(', ') }}">{{ fs.errors }} Fehler</span>{% endif %}{% if fs.skipped %} / {{ fs.skipped }} Cooldown{% endif %}
                 · {{ fs.finished_at[:10] if fs.finished_at else '' }}
               </span>
             {% elif fs and fs.status == 'error' %}
