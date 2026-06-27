@@ -310,6 +310,23 @@ if (running.length) {
     </details>
     {% endif %}
 
+    {# Skip-Tabelle Fetch #}
+    {% if fs and fs.skip_log %}
+    <details style="margin: -4px 0 10px 110px;">
+      <summary style="font-size:11px; color:var(--muted); cursor:pointer;">
+        {{ fs.skipped }} übersprungen — Grund anzeigen
+      </summary>
+      <table style="margin-top:4px; font-size:11px; border-collapse:collapse;">
+        {% for e in fs.skip_log %}
+        <tr>
+          <td style="padding:2px 8px 2px 0; color:var(--text); font-family:monospace;">{{ e.ticker }}</td>
+          <td style="padding:2px 0; color:var(--muted);">{{ e.reason }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </details>
+    {% endif %}
+
     {# Ranking-Status #}
     {% set rs = rank_status %}
     <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:6px;">
