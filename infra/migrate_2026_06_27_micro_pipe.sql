@@ -47,4 +47,12 @@ BEGIN
     ) THEN
         ALTER TABLE cluster_items ADD COLUMN ibkr_status TEXT DEFAULT 'resolved';
     END IF;
+
+    -- sec_type-Spalte ergänzen falls sie fehlt (ETF/Fonds-Klassifikation für Pre-Filter)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'cluster_items' AND column_name = 'sec_type'
+    ) THEN
+        ALTER TABLE cluster_items ADD COLUMN sec_type TEXT;
+    END IF;
 END$$;

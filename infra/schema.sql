@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS cluster_items (
     benchmark   TEXT DEFAULT 'AMEX:SPY',
     notizen     TEXT,
     ibkr_status TEXT DEFAULT 'resolved',
+    sec_type    TEXT,
     PRIMARY KEY (cluster_id, tv_symbol)
 );
 CREATE INDEX IF NOT EXISTS cluster_items_ticker_idx ON cluster_items (ticker);
