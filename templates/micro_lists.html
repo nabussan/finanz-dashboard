@@ -138,7 +138,7 @@
     <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Wie kommt eine neue Liste rein?</summary>
     <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; padding-left:4px;">
       <b>1. TV-Screener:</b> Filter setzen → F12 → Console → JS-Snippet einfügen (Ctrl+V) → Enter → Ticker in Zwischenablage:<br>
-      &nbsp;&nbsp;&nbsp;<code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);copy(t.join('\n'));console.log(t.length+' Ticker kopiert');</code><br>
+      &nbsp;&nbsp;&nbsp;<code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);if(!t.length){alert('Keine Ticker gefunden — TV hat möglicherweise die Seitenstruktur geändert');}else{copy(t.join('\n'));console.log(t.length+' Ticker kopiert');}</code><br>
       &nbsp;&nbsp;&nbsp;⚠ Firefox: Beim ersten Einfügen erscheint „Paste protection" → <b>Einfügen erlauben</b> eintippen → Enter → Snippet nochmal einfügen. Gilt für die ganze Sitzung.<br>
       <b>2. Hier:</b> Liste anlegen (+ Anlegen) oder vorhandene wählen → <b>Importieren…</b> aufklappen → Zwischenablage einfügen → Importieren<br>
       <b>3. Hier:</b> ▶ Holen klicken → Fundamentaldaten von TV laden (~2 Ticker/Min)<br>
