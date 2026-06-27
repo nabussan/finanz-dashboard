@@ -175,6 +175,21 @@ async def micro_page(request: Request, cluster_id: int | None = None):
         tickers = _load_from_json_fallback()
         source = "json-fallback"
 
+    # Universe-Scores für Cluster-JSON-View aus DB nachladen
+    if source == "cluster-json" and cluster_id and tickers:
+        ticker_names = [t["ticker"].upper() for t in tickers if t.get("ticker")]
+        if ticker_names:
+            univ_rows = await pool.fetch(
+                """SELECT upper(ticker) AS ticker, ranking_score AS score_universe
+                   FROM fundamentals
+                   WHERE updated = (SELECT MAX(updated) FROM fundamentals)
+                   AND upper(ticker) = ANY($1::text[])""",
+                ticker_names,
+            )
+            univ_map = {r["ticker"]: r["score_universe"] for r in univ_rows}
+            for t in tickers:
+                t["score_universe"] = univ_map.get(t["ticker"].upper())
+
     # Cluster-Rang (1..N) neu vergeben aus Cluster-JSON
     # Bei DB-Daten: ranking_pos aus DB verwenden
     if source == "cluster-json":

@@ -71,14 +71,14 @@
           </th>
           <th style="text-align:left; padding:4px 6px;">Liste</th>
           <th style="text-align:right; padding:4px 6px;">Ticker</th>
-          <th style="text-align:left; padding:4px 10px;">Letzter Fetch</th>
-          <th style="text-align:left; padding:4px 6px;">Status</th>
+          <th style="text-align:left; padding:4px 10px; min-width:240px;">Datenholen</th>
+          <th style="text-align:left; padding:4px 6px; min-width:120px;">Ranking</th>
         </tr>
       </thead>
       <tbody>
         {% for ml in all_lists %}
         {% set fs = ml.fetch_status %}
-        <tr style="border-bottom:1px solid var(--border);">
+        <tr data-cluster-id="{{ ml.id }}" style="border-bottom:1px solid var(--border);">
           <td style="padding:4px 6px; text-align:center;">
             <input type="checkbox" name="ids" value="{{ ml.id }}" class="list-check">
           </td>
@@ -86,31 +86,36 @@
             <a href="/micro-listen/{{ ml.id }}" style="color:var(--accent);">{{ ml.name }}</a>
           </td>
           <td style="padding:4px 6px; text-align:right; color:var(--muted);">{{ ml.item_count }}</td>
-          <td style="padding:4px 10px; color:var(--muted);">
-            {% if fs and fs.finished_at %}
-              {{ fs.finished_at[:16].replace('T',' ') }}
-            {% elif fs and fs.status == 'running' %}
-              läuft…
+          <td style="padding:4px 6px;" id="fetch-cell-{{ ml.id }}">
+            {% if fs and fs.status == 'running' %}
+              <span class="admin-btn-dot admin-btn--status-yellow"></span>
+              <span class="pipeline-progress">{{ fs.done }}/{{ fs.to_scrape if fs.to_scrape is not none else '?' }} Ticker…</span>
+            {% elif fs and fs.status == 'done' %}
+              <span class="admin-btn-dot admin-btn--status-green"></span>
+              <span style="color:var(--muted); font-size:11px;">
+                {{ fs.done }} OK{% if fs.skipped_etf %} / {{ fs.skipped_etf }} ETF{% endif %}{% if fs.errors %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}
+                · {{ fs.finished_at[:10] if fs.finished_at else '' }}
+              </span>
+            {% elif fs and fs.status == 'error' %}
+              <span class="admin-btn-dot admin-btn--status-red"></span>
+              <span style="color:var(--red); font-size:11px;">Fehler</span>
             {% else %}
-              —
+              <span class="admin-btn-dot" style="background:var(--muted);"></span>
+              <span style="color:var(--muted); font-size:11px;">nie</span>
             {% endif %}
+            <form method="post" action="/micro-listen/{{ ml.id }}/fetch" style="display:inline; margin-left:6px;">
+              <button class="btn-secondary" style="font-size:11px; padding:2px 8px;"
+                      {% if fs and fs.status == 'running' %}disabled{% endif %}>▶ Holen</button>
+            </form>
           </td>
-          <td style="padding:4px 6px;">
-            {% if fs %}
-              {% if fs.status == 'running' %}
-                <span class="admin-btn-dot admin-btn--status-yellow" title="läuft"></span>
-                {{ fs.done }}/{{ fs.to_scrape }}
-              {% elif fs.status == 'done' %}
-                <span class="admin-btn-dot admin-btn--status-green" title="OK"></span>
-                {{ fs.done }} OK{% if fs.skipped_etf > 0 %} / {{ fs.skipped_etf }} ETF{% endif %}{% if fs.errors > 0 %} / <span style="color:var(--red);">{{ fs.errors }} Fehler</span>{% endif %}
-                {% if fs.skipped > 0 %} / {{ fs.skipped }} skip{% endif %}
-              {% elif fs.status == 'error' %}
-                <span class="admin-btn-dot admin-btn--status-red" title="Fehler"></span>
-                Fehler
-              {% endif %}
+          <td style="padding:4px 6px; font-size:11px;">
+            {% if ml.has_ranking %}
+              <form method="post" action="/micro/rank?cluster_id={{ ml.id }}" style="display:inline;">
+                <button class="btn-secondary" style="font-size:11px; padding:2px 8px;">⟳ Ranking</button>
+              </form>
+              <a href="/micro?cluster_id={{ ml.id }}" style="color:var(--accent); font-size:11px; margin-left:6px;">→ ansehen</a>
             {% else %}
-              <span class="admin-btn-dot" style="background:var(--muted);" title="nie gefetcht"></span>
-              nie
+              <span style="color:var(--muted);">—</span>
             {% endif %}
           </td>
         </tr>
@@ -128,13 +133,28 @@
       <span style="font-size:11px; color:var(--muted);" id="selected-count"></span>
     </div>
   </form>
+
+  <details style="margin-top:14px;">
+    <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Wie kommt eine neue Liste rein?</summary>
+    <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; padding-left:4px;">
+      <b>1. TV-Screener:</b> Filter setzen → F12 → Console → „Einfügen erlauben" → JS-Snippet ausführen → Ticker in Zwischenablage<br>
+      <b>2. Auf P53:</b> <code>python src/115_screener_zu_watchlist.py botb.txt --name "BOTB"</code><br>
+      &nbsp;&nbsp;&nbsp;→ lädt Liste automatisch auf dieses Dashboard hoch<br>
+      <b>3. Hier:</b> ▶ Holen klicken → Fundamentaldaten von TV laden (~2 Ticker/Min)<br>
+      <b>4. Hier:</b> ⟳ Ranking → Score + Ranking berechnen → „→ ansehen" öffnet /micro<br>
+      <br>
+      JS-Snippet (Konsole): <code style="word-break:break-all;">var t=[...document.querySelectorAll('a[href*="/symbols/"]')].map(a=>{var m=a.href.match(/\/symbols\/([A-Z0-9]{1,6})-([A-Z0-9.]{1,12})\//);return m?m[1]+':'+m[2]:null}).filter((v,i,a)=>v&&a.indexOf(v)===i);copy(t.join('\n'));console.log(t.length+' Ticker kopiert');</code>
+    </div>
+  </details>
 </div>
 
 <script>
+(function() {
 function toggleAll(cb) {
   document.querySelectorAll('.list-check').forEach(c => c.checked = cb.checked);
   updateCount();
 }
+window.toggleAll = toggleAll;
 function updateCount() {
   const n = document.querySelectorAll('.list-check:checked').length;
   document.getElementById('selected-count').textContent = n ? n + ' ausgewählt' : '';
@@ -146,6 +166,33 @@ function prepareMultiFetch() {
   document.getElementById('selected-ids-input').value = ids.join(',');
   return true;
 }
+window.prepareMultiFetch = prepareMultiFetch;
+
+// Polling: laufende Fetches alle 3s prüfen, bei Abschluss neu laden
+var running = [];
+document.querySelectorAll('[data-cluster-id]').forEach(function(row) {
+  var cell = document.getElementById('fetch-cell-' + row.dataset.clusterId);
+  if (cell && cell.querySelector('.admin-btn--status-yellow')) {
+    running.push(row.dataset.clusterId);
+  }
+});
+if (running.length) {
+  function poll() {
+    var stillRunning = false;
+    var reqs = running.map(function(cid) {
+      return fetch('/micro-listen/' + cid + '/pipeline-status')
+        .then(function(r) { return r.json(); })
+        .then(function(d) { if (d.fetch && d.fetch.status === 'running') stillRunning = true; })
+        .catch(function() {});
+    });
+    Promise.all(reqs).then(function() {
+      if (stillRunning) setTimeout(poll, 3000);
+      else location.reload();
+    });
+  }
+  setTimeout(poll, 3000);
+}
+}());
 </script>
 {% endif %}
 

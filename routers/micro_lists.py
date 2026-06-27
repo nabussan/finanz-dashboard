@@ -54,7 +54,7 @@ async def micro_listen_default(request: Request):
     )
     all_lists = [dict(r) for r in rows]
 
-    # Fetch-Status für jede Liste aus Progress-Files
+    # Fetch-Status + Ranking-Verfügbarkeit für jede Liste
     for lst in all_lists:
         pf = _progress_file(lst["id"])
         if pf.exists():
@@ -64,6 +64,7 @@ async def micro_listen_default(request: Request):
                 lst["fetch_status"] = None
         else:
             lst["fetch_status"] = None
+        lst["has_ranking"] = (config.MICRO_CLUSTER_DIR / f"{lst['id']}.json").exists()
 
     if not all_lists:
         return templates.TemplateResponse(
