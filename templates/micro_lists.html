@@ -168,7 +168,7 @@ function prepareMultiFetch() {
 }
 window.prepareMultiFetch = prepareMultiFetch;
 
-// Polling: laufende Fetches alle 3s prüfen, bei Abschluss neu laden
+// Polling: laufende Fetches alle 3s prüfen + Anzeige live aktualisieren
 var running = [];
 document.querySelectorAll('[data-cluster-id]').forEach(function(row) {
   var cell = document.getElementById('fetch-cell-' + row.dataset.clusterId);
@@ -177,13 +177,28 @@ document.querySelectorAll('[data-cluster-id]').forEach(function(row) {
   }
 });
 if (running.length) {
+  function updateCell(cid, d) {
+    var cell = document.getElementById('fetch-cell-' + cid);
+    if (!cell) return;
+    var prog = cell.querySelector('.pipeline-progress');
+    var dot  = cell.querySelector('.admin-btn-dot');
+    if (!d || !d.fetch) return;
+    var fs = d.fetch;
+    if (fs.status === 'running') {
+      var toScrape = fs.to_scrape != null ? fs.to_scrape : '?';
+      if (prog) prog.textContent = fs.done + '/' + toScrape + ' Ticker…';
+      if (dot)  { dot.className = 'admin-btn-dot admin-btn--status-yellow'; }
+    }
+  }
   function poll() {
     var stillRunning = false;
     var reqs = running.map(function(cid) {
       return fetch('/micro-listen/' + cid + '/pipeline-status')
         .then(function(r) { return r.json(); })
-        .then(function(d) { if (d.fetch && d.fetch.status === 'running') stillRunning = true; })
-        .catch(function() {});
+        .then(function(d) {
+          updateCell(cid, d);
+          if (d.fetch && d.fetch.status === 'running') stillRunning = true;
+        }).catch(function() {});
     });
     Promise.all(reqs).then(function() {
       if (stillRunning) setTimeout(poll, 3000);
