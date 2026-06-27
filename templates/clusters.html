@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block title %}Cluster-Verwaltung{% endblock %}
+{% block body_class %}clusters-page{% endblock %}
+{% block content %}
+
+<div class="wl-header">
+  <span style="font-size:14px; font-weight:600; color:var(--text);">Cluster-Verwaltung</span>
+
+  <div class="wl-toolbar">
+    <form method="post" action="/clusters/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title=".txt hochladen — Dateiname = Cluster-Name">
+        ⊕ Datei (TV)
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+        <input type="hidden" name="mode" value="tv">
+      </label>
+    </form>
+    <form method="post" action="/clusters/upload" enctype="multipart/form-data">
+      <label class="btn-secondary wl-file-label" title=".txt hochladen — Dateiname = Cluster-Name, Micro-Format">
+        ⊕ Datei (Micro)
+        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
+        <input type="hidden" name="mode" value="micro">
+      </label>
+    </form>
+    <form method="post" action="/clusters" class="wl-new-form">
+      <input type="text" name="name" placeholder="Neuer Cluster…" required class="wl-name-input" style="width:160px;" autocomplete="off">
+      <button type="submit" class="btn-secondary">+ Anlegen</button>
+    </form>
+  </div>
+</div>
+
+{% if not clusters %}
+<div class="wl-empty">Noch keine Cluster — oben anlegen oder Datei hochladen.</div>
+{% else %}
+
+<div style="padding: 12px;">
+<table style="width:100%; border-collapse:collapse; font-size:12px;">
+  <thead>
+    <tr style="border-bottom:1px solid var(--border); color:var(--muted);">
+      <th style="text-align:left; padding:6px 8px; min-width:160px;">Name</th>
+      <th style="text-align:right; padding:6px 8px; width:60px;">Ticker</th>
+      <th style="text-align:left; padding:6px 16px; min-width:220px;">Views</th>
+      <th style="text-align:left; padding:6px 8px;">Aktionen</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for c in clusters %}
+  <tr id="cluster-{{ c.id }}" style="border-bottom:1px solid var(--border); vertical-align:top;">
+
+    {# ── Name + Umbenennen ───────────────────────────────────── #}
+    <td style="padding:8px 8px;">
+      <details>
+        <summary style="cursor:pointer; font-weight:500; color:var(--text);">{{ c.name }}</summary>
+        <form method="post" action="/clusters/{{ c.id }}/rename" style="margin-top:4px; display:flex; gap:4px;">
+          <input type="text" name="name" value="{{ c.name }}" required
+                 style="background:var(--bg); color:var(--text); border:1px solid var(--border);
+                        border-radius:4px; padding:2px 6px; font-size:11px; width:140px;"
+                 autocomplete="off">
+          <button type="submit" class="btn-secondary" style="font-size:11px; padding:2px 8px;">Umbenennen</button>
+        </form>
+      </details>
+    </td>
+
+    {# ── Ticker-Anzahl ───────────────────────────────────────── #}
+    <td style="padding:8px 8px; text-align:right; color:var(--muted);">{{ c.item_count }}</td>
+
+    {# ── View-Badges ─────────────────────────────────────────── #}
+    <td style="padding:8px 16px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+        {% for view in all_views %}
+        {% if view in c.views %}
+        <span style="display:inline-flex; align-items:center; gap:3px;">
+          <span class="badge badge--buy" style="font-size:10px; padding:1px 6px;">{{ view }}</span>
+          <form method="post" action="/clusters/{{ c.id }}/unassign" style="display:inline; margin:0;">
+            <input type="hidden" name="view_name" value="{{ view }}">
+            <button type="submit" class="btn-delete" style="font-size:9px; padding:0 4px; line-height:16px;"
+                    title="{{ view }}-Zuweisung entfernen">×</button>
+          </form>
+        </span>
+        {% else %}
+        <form method="post" action="/clusters/{{ c.id }}/assign" style="display:inline; margin:0;">
+          <input type="hidden" name="view_name" value="{{ view }}">
+          <button type="submit" class="btn-secondary"
+                  style="font-size:10px; padding:1px 7px; color:var(--muted); border-style:dashed;"
+                  title="Zu {{ view }} zuweisen">+ {{ view }}</button>
+        </form>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </td>
+
+    {# ── Aktionen ────────────────────────────────────────────── #}
+    <td style="padding:8px 8px;">
+      <div style="display:flex; flex-direction:column; gap:6px;">
+
+        {# Import #}
+        <details>
+          <summary class="btn-secondary" style="font-size:11px; padding:2px 8px; cursor:pointer; display:inline;">
+            Importieren…
+          </summary>
+          <div style="margin-top:6px; background:var(--card-bg); border:1px solid var(--border);
+                      border-radius:4px; padding:8px; min-width:280px; position:relative; z-index:10;">
+            <form method="post" action="/clusters/{{ c.id }}/import">
+              <div style="display:flex; gap:6px; margin-bottom:4px; align-items:center;">
+                <span style="font-size:11px; color:var(--muted);">Modus:</span>
+                <label style="font-size:11px; cursor:pointer;">
+                  <input type="radio" name="mode" value="tv" checked> TV
+                </label>
+                <label style="font-size:11px; cursor:pointer;">
+                  <input type="radio" name="mode" value="micro"> Micro
+                </label>
+              </div>
+              <textarea name="content" rows="4" autocomplete="off"
+                        style="width:100%; background:var(--bg); color:var(--text);
+                               border:1px solid var(--border); border-radius:4px;
+                               padding:4px; font-size:11px; font-family:monospace;"
+                        placeholder="NASDAQ:AAPL,NYSE:SPY&#10;oder eine Zeile pro Ticker"></textarea>
+              <div style="display:flex; gap:6px; margin-top:4px;">
+                <button type="submit" class="btn-primary" style="font-size:11px; padding:3px 10px;">Importieren</button>
+              </div>
+            </form>
+          </div>
+        </details>
+
+        {# Löschen #}
+        <form method="post" action="/clusters/{{ c.id }}/delete"
+              onsubmit="return confirm('Cluster »{{ c.name }}« und alle {{ c.item_count }} Ticker löschen?')">
+          <button type="submit" class="btn-danger" style="font-size:11px; padding:2px 8px;">Löschen</button>
+        </form>
+
+      </div>
+    </td>
+
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endif %}
+
+{% endblock %}
