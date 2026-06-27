@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
+from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
@@ -163,6 +163,7 @@ templates.env.globals.update(
     rend_class=_rend_class,
 )
 
+app.include_router(clusters.router)
 app.include_router(disco.router)
 app.include_router(rsm.router)
 app.include_router(portfolio.router)

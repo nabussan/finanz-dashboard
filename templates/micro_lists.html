@@ -16,25 +16,12 @@
          class="tab-link{% if active_list and active_list.id == ml.id %} tab-link--active{% endif %}">
         {{ ml.name }}
       </a>
-      <form method="post" action="/micro-listen/{{ ml.id }}/delete" class="tab-delete-form"
-            onsubmit="return confirm('Liste »{{ ml.name }}« löschen? Fundamentaldaten und Kurshistorie bleiben erhalten, nur die Gruppierung wird entfernt.')">
-        <button type="submit" class="tab-delete-btn" title="Liste löschen (Daten bleiben in der DB)">×</button>
-      </form>
     </span>
     {% endfor %}
   </nav>
 
   <div class="wl-toolbar">
-    <form method="post" action="/micro-listen/upload" enctype="multipart/form-data">
-      <label class="btn-secondary wl-file-label" title="TV-Format .txt hochladen — Dateiname = Listen-Name">
-        ⊕ Datei
-        <input type="file" name="file" accept=".txt,.csv" onchange="this.form.submit()" class="wl-file-input">
-      </label>
-    </form>
-    <form method="post" action="/micro-listen" class="wl-new-form">
-      <input type="text" name="name" placeholder="Neue Liste (z.B. US, Europa, Asien)…" required class="wl-name-input" style="width:220px;">
-      <button type="submit" class="btn-secondary">+ Anlegen</button>
-    </form>
+    <a href="/clusters" class="btn-secondary" style="font-size:12px; padding:4px 10px; text-decoration:none;">⚙ Cluster verwalten</a>
   </div>
 </div>
 
@@ -224,9 +211,10 @@ if (running.length) {
   {% else %}
   <div style="margin-bottom:16px;">
     {% for i in resolved_items %}
-    <form method="post" action="/micro-listen/{{ active_list.id }}/delete-item"
+    <form method="post" action="/clusters/{{ active_list.id }}/delete-item"
           class="inline-form" style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
       <input type="hidden" name="tv_symbol" value="{{ i.tv_symbol }}">
+      <input type="hidden" name="next" value="/micro-listen/{{ active_list.id }}">
       <span class="badge badge--buy" style="min-width:60px; text-align:center;">resolved</span>
       <span style="font-size:12px; flex:1;">{{ i.tv_symbol }}</span>
       <button type="submit" class="btn-delete" title="Entfernen">×</button>
@@ -243,9 +231,10 @@ if (running.length) {
   {% else %}
   <div style="margin-bottom:16px;">
     {% for i in unresolved_items %}
-    <form method="post" action="/micro-listen/{{ active_list.id }}/delete-item"
+    <form method="post" action="/clusters/{{ active_list.id }}/delete-item"
           class="inline-form" style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
       <input type="hidden" name="tv_symbol" value="{{ i.tv_symbol }}">
+      <input type="hidden" name="next" value="/micro-listen/{{ active_list.id }}">
       <span class="badge badge--warn" style="min-width:60px; text-align:center;">unresolved</span>
       <span style="font-size:12px; flex:1;">{{ i.tv_symbol }}</span>
       <button type="submit" class="btn-delete" title="Entfernen">×</button>
@@ -256,8 +245,10 @@ if (running.length) {
 
   <details>
     <summary style="font-size:11px; color:var(--muted); cursor:pointer;">Importieren…</summary>
-    <form method="post" action="/micro-listen/{{ active_list.id }}/import" style="margin-top:6px; max-width:480px;">
-      <textarea name="content" rows="4"
+    <form method="post" action="/clusters/{{ active_list.id }}/import" style="margin-top:6px; max-width:480px;">
+      <input type="hidden" name="mode" value="micro">
+      <input type="hidden" name="next" value="/micro-listen/{{ active_list.id }}">
+      <textarea name="content" rows="4" autocomplete="off"
                 style="width:100%; background:var(--bg); color:var(--text);
                        border:1px solid var(--border); border-radius:4px;
                        padding:4px; font-size:11px; font-family:monospace;"
@@ -404,13 +395,12 @@ if (running.length) {
   </script>
   {% endif %}
 
-  <form method="post" action="/micro-listen/{{ active_list.id }}/delete"
-        style="margin-top:16px; max-width:240px;"
-        onsubmit="return confirm('Liste »{{ active_list.name }}« löschen? Fundamentaldaten und Kurshistorie bleiben erhalten.')">
-    <button type="submit" class="btn-danger" style="font-size:11px; padding:4px 10px; width:100%;">
-      Liste löschen (Daten bleiben in DB)
-    </button>
-  </form>
+  <div style="margin-top:16px;">
+    <a href="/clusters#cluster-{{ active_list.id }}" class="btn-secondary"
+       style="font-size:11px; padding:4px 10px; text-decoration:none; display:inline-block;">
+      ⚙ Importieren / Löschen → Cluster-Verwaltung
+    </a>
+  </div>
 
 </div>
 {% endif %}

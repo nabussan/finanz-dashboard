@@ -12,7 +12,7 @@ import config
 import db
 from routers.micro_score import score_tickers, write_to_db_sync
 from routers._cluster_shared import (
-    classify_ibkr_coverage, upsert_cluster, insert_items, trigger_ondemand_update,
+    classify_ibkr_coverage, upsert_cluster, assign_view, insert_items, trigger_ondemand_update,
 )
 
 _UNTRACKED_LIST_NAME = "Manuell ergänzt"
@@ -45,8 +45,9 @@ async def _load_clusters(pool) -> list[dict]:
     rows = await pool.fetch(
         """SELECT c.id, c.name, COUNT(ci.tv_symbol) AS item_count
            FROM clusters c
+           JOIN cluster_views cv ON cv.cluster_id = c.id
            LEFT JOIN cluster_items ci ON ci.cluster_id = c.id
-           WHERE c.kind = 'micro_list'
+           WHERE cv.view_name = 'micro'
            GROUP BY c.id, c.name ORDER BY c.name"""
     )
     clusters = [dict(r) for r in rows]
@@ -289,7 +290,8 @@ async def micro_track(tv_symbol: str = Form(...)):
     OHLCV-Fetch mitnimmt. Landet in einer gemeinsamen 'Manuell ergänzt'-Liste statt
     eine konkrete Liste abzufragen -- haelt den Button im Chart-Panel klick-und-fertig."""
     pool = await db.get_pool()
-    list_id = await upsert_cluster(pool, _UNTRACKED_LIST_NAME, "micro_list")
+    list_id = await upsert_cluster(pool, _UNTRACKED_LIST_NAME)
+    await assign_view(pool, list_id, "micro")
     status = classify_ibkr_coverage(tv_symbol)
     await insert_items(pool, list_id, [tv_symbol], [status])
     if status == "resolved":
