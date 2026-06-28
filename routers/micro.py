@@ -182,8 +182,8 @@ async def micro_page(request: Request, cluster_id: int | None = None):
         source = "db" if tickers else "json-fallback"
         scored_at = tickers[0]["updated"].isoformat() if tickers else None
 
-    # JSON-Fallback wenn DB leer
-    if not tickers:
+    # JSON-Fallback nur wenn ein konkretes Cluster gewählt ist (nicht Alle-View)
+    if not tickers and cluster_id is not None:
         tickers = _load_from_json_fallback()
         source = "json-fallback"
 
@@ -380,7 +380,8 @@ def _load_from_json_fallback() -> list[dict]:
                 "score_profitability": None,
                 "cluster_rank": None,
                 "universe_rank": None,
-                "pe": None, "roe": None, "debt_equity": None, "ev_ebitda": None,
+                "pe": None, "roe": None, "roic": None, "debt_equity": None,
+                "ev_ebitda": None, "revenue_growth": None, "has_prices": False,
             })
         except Exception:
             continue
