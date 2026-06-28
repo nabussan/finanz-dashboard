@@ -105,7 +105,7 @@
       <td>{{ job.label }}</td>
       <td><code>{{ job.expr }}</code></td>
       <td class="cron-desc">{{ job.desc }}</td>
-      <td><span class="admin-btn-dot admin-btn-dot--inline admin-btn--status-{{ job.dot }}"></span></td>
+      <td>{% if job.dot %}<span class="admin-btn-dot admin-btn-dot--inline admin-btn--status-{{ job.dot }}"></span>{% endif %}</td>
       <td class="cron-next">{{ job.next_label }}</td>
     </tr>
     {% endfor %}

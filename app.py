@@ -316,7 +316,13 @@ def _cron_schedule(pipeline_status: dict[str, str]) -> list[dict]:
             next_label = "—"
 
         task = job.get("task")
-        dot = pipeline_status.get(task, "grey") if task else "grey"
+        if task:
+            dot = pipeline_status.get(task, "grey")
+        elif job["label"] == "Gateway-Health":
+            gw = _gateway_status()
+            dot = "green" if gw.get("status") == "up" else "red"
+        else:
+            dot = ""
         rows.append({**job, "next_label": next_label, "dot": dot})
     return rows
 
