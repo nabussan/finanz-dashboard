@@ -29,7 +29,7 @@ _PIPELINE_TASKS = {
     "intraday": ("Intraday-Kurse (Snapshot)", ["src/intraday_prices.py"]),
     "eod":    ("EOD-Update (OHLCV)",          ["src/eod_update.py", "--skip-ibkr"]),  # --skip-ibkr = kein Options-Screen
     "iv":     ("IV-Daten (IBKR Options)",      ["src/run_w3.py", "--ibkr-only"]),
-    "scores": ("W3-Scores",                    ["src/run_w3.py", "--skip-update", "--skip-notify"]),
+    "scores": ("W3-Scores",                    ["src/run_w3.py", "--skip-update", "--skip-ibkr", "--skip-notify"]),
     "charts": ("Charts neu generieren",        ["src/make_charts.py"]),
     "classify": ("Klasse neu berechnen (alle Ticker)", ["src/determine_class.py"]),
     "full":   ("Alles (EOD + IV + Scores + Charts)", None),  # handled separately
