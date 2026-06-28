@@ -1073,3 +1073,45 @@ td a:hover { text-decoration: underline; }
 .chart-panel { display: flex; flex-direction: column; }
 .chart-body { flex: 1; min-height: 0; position: relative; }
 #tv-chart { position: absolute; inset: 0; display: none; }
+
+/* Cron-Zeitplan-Tabelle */
+.cron-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.cron-table th {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cron-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  vertical-align: middle;
+}
+.cron-table tr:last-child td { border-bottom: none; }
+.cron-table code {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: rgba(255,255,255,.05);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.cron-desc { color: var(--muted); font-size: 12px; }
+.cron-next { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-btn-dot--inline {
+  display: inline-block;
+  position: static;
+}
+.admin-btn--status-red    .admin-btn-dot--inline { background: var(--red); }
+.admin-btn--status-yellow .admin-btn-dot--inline { background: var(--orange); }
+.admin-btn--status-green  .admin-btn-dot--inline { background: var(--green); }
+.admin-btn--status-grey   .admin-btn-dot--inline { background: var(--muted); }

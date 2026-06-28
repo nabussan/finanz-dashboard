@@ -1,4 +1,5 @@
 # Runtime
+croniter>=1.4
 fastapi>=0.115
 uvicorn[standard]>=0.30
 asyncpg>=0.29

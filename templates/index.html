@@ -87,4 +87,28 @@
     </button>
   </form>
 </div>
+
+<h2 style="margin-top: 40px;">Automatische Zeitpläne</h2>
+<table class="cron-table">
+  <thead>
+    <tr>
+      <th>Job</th>
+      <th>Cron-Ausdruck</th>
+      <th>Beschreibung</th>
+      <th>Status</th>
+      <th>Nächster Lauf</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for job in cron_jobs %}
+    <tr>
+      <td>{{ job.label }}</td>
+      <td><code>{{ job.expr }}</code></td>
+      <td class="cron-desc">{{ job.desc }}</td>
+      <td><span class="admin-btn-dot admin-btn-dot--inline admin-btn--status-{{ job.dot }}"></span></td>
+      <td class="cron-next">{{ job.next_label }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

@@ -19,6 +19,12 @@ from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchli
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
+try:
+    from croniter import croniter as _croniter
+    _CRONITER_AVAILABLE = True
+except ImportError:
+    _CRONITER_AVAILABLE = False
+
 _PIPELINE_TASKS = {
     "intraday": ("Intraday-Kurse (Snapshot)", ["src/intraday_prices.py"]),
     "eod":    ("EOD-Update (OHLCV)",          ["src/eod_update.py", "--skip-ibkr"]),  # --skip-ibkr = kein Options-Screen
@@ -292,14 +298,38 @@ async def api_live_prices():
     return JSONResponse({r["ticker"]: float(r["price"]) for r in rows})
 
 
+def _cron_schedule(pipeline_status: dict[str, str]) -> list[dict]:
+    """Cron-Jobs mit berechnetem next_run (croniter) und last_run-Farbe."""
+    now = datetime.now()
+    rows = []
+    for job in config.CRON_JOBS:
+        if _CRONITER_AVAILABLE:
+            try:
+                nxt = _croniter(job["expr"], now).get_next(datetime)
+                delta = nxt - now
+                h, rem = divmod(int(delta.total_seconds()), 3600)
+                m = rem // 60
+                next_label = f"in {h}h {m:02d}m" if h else f"in {m}m"
+            except Exception:
+                next_label = "?"
+        else:
+            next_label = "—"
+
+        task = job.get("task")
+        dot = pipeline_status.get(task, "grey") if task else "grey"
+        rows.append({**job, "next_label": next_label, "dot": dot})
+    return rows
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     pool = await db.get_pool()
     systems = await _system_status(pool)
     systems.append(_gateway_status())
     pipeline_status = await _pipeline_status(pool)
+    cron_jobs = _cron_schedule(pipeline_status)
     return templates.TemplateResponse(
-        request, "index.html", {"systems": systems, "pipeline_status": pipeline_status}
+        request, "index.html", {"systems": systems, "pipeline_status": pipeline_status, "cron_jobs": cron_jobs}
     )
 
 
