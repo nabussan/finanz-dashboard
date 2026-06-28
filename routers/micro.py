@@ -182,27 +182,30 @@ async def micro_page(request: Request, cluster_id: int | None = None):
         source = "db" if tickers else "empty"
         scored_at = tickers[0]["updated"].isoformat() if tickers else None
 
-    # Universe-Scores für Cluster-JSON-View aus DB nachladen
+    # Universe-Scores + Rang für Cluster-JSON-View aus DB nachladen
     if source == "cluster-json" and cluster_id and tickers:
         ticker_names = [t["ticker"].upper() for t in tickers if t.get("ticker")]
         if ticker_names:
             univ_rows = await pool.fetch(
-                """SELECT upper(ticker) AS ticker, ranking_score AS score_universe
+                """SELECT upper(ticker) AS ticker, ranking_score AS score_universe,
+                          ranking_pos AS universe_rank
                    FROM fundamentals
                    WHERE updated = (SELECT MAX(updated) FROM fundamentals)
                    AND upper(ticker) = ANY($1::text[])""",
                 ticker_names,
             )
-            univ_map = {r["ticker"]: r["score_universe"] for r in univ_rows}
+            univ_map = {r["ticker"]: dict(r) for r in univ_rows}
             for t in tickers:
-                t["score_universe"] = univ_map.get(t["ticker"].upper())
+                row = univ_map.get(t["ticker"].upper(), {})
+                t["score_universe"] = row.get("score_universe")
+                t["universe_rank"] = row.get("universe_rank")
 
     # Cluster-Rang (1..N) neu vergeben aus Cluster-JSON
     # Bei DB-Daten: ranking_pos aus DB verwenden
     if source == "cluster-json":
         for i, t in enumerate(tickers, 1):
             t.setdefault("cluster_rank", i)
-            t["universe_rank"] = None
+            t.setdefault("universe_rank", None)
     else:
         for i, t in enumerate(tickers, 1):
             t["cluster_rank"] = i
@@ -252,7 +255,14 @@ async def micro_rank(
         )
         cluster_name = cluster_name_rows[0]["name"] if cluster_name_rows else str(cluster_id)
     else:
-        tv_symbols = []
+        # Universe = alle Ticker aus allen Micro-Clustern (nicht alle JSON-Dateien)
+        rows = await pool.fetch(
+            """SELECT DISTINCT ci.tv_symbol FROM cluster_items ci
+               JOIN clusters c ON c.id = ci.cluster_id
+               JOIN cluster_views cv ON cv.cluster_id = c.id
+               WHERE cv.view_name = 'micro'"""
+        )
+        tv_symbols = [r["tv_symbol"] for r in rows]
         cluster_name = "Universe"
 
     # Synchrones Cluster-Scoring (schnell: N Ticker)
@@ -271,20 +281,43 @@ async def micro_rank(
             json.dumps(out, ensure_ascii=False, default=str), encoding="utf-8"
         )
 
-    # Universe-Scoring asynchron im Hintergrund (DB-Update)
+    # DB-Schreiben + Universe-Rang asynchron im Hintergrund (kein JSON-Lesen)
     if config.DB_URL:
         _rank_status["status"] = "running"
-        background_tasks.add_task(_universe_score_task)
+        background_tasks.add_task(_db_write_and_rank_task, results)
 
     redirect_url = f"/micro?cluster_id={cluster_id}" if cluster_id else "/micro"
     return RedirectResponse(redirect_url, status_code=303)
 
 
-def _universe_score_task():
+def _db_write_and_rank_task(results: list[dict]):
+    """Scores in DB schreiben, dann ranking_pos aus bestehenden Scores neu berechnen (kein JSON-Lesen)."""
+    import asyncio
+    import asyncpg
     global _rank_status
+
+    async def _rerank():
+        con = await asyncpg.connect(config.DB_URL)
+        try:
+            await con.execute("""
+                UPDATE fundamentals f
+                SET ranking_pos = sub.pos
+                FROM (
+                    SELECT ticker, exchange, updated,
+                           ROW_NUMBER() OVER (ORDER BY ranking_score DESC NULLS LAST) AS pos
+                    FROM fundamentals
+                    WHERE updated = (SELECT MAX(updated) FROM fundamentals)
+                ) sub
+                WHERE f.ticker = sub.ticker
+                  AND f.exchange = sub.exchange
+                  AND f.updated = sub.updated
+            """)
+        finally:
+            await con.close()
+
     try:
-        results = score_tickers([], config.MICRO_JSON_DIR, config.MICRO_CONFIG_PATH)
-        n = write_to_db_sync(results, config.DB_URL)
+        write_to_db_sync(results, config.DB_URL)
+        asyncio.run(_rerank())
         _rank_status = {"status": "done", "last_run": datetime.now().isoformat(timespec="seconds")}
     except Exception as e:
         _rank_status = {"status": "idle", "last_run": None}
