@@ -56,8 +56,8 @@ RSM_PORTFOLIO_DAILY_HTML = RSM_DATA_DIR / "charts" / "portfolio_daily.html"
 # hi=True: höher=besser (Grün wenn >= green), hi=False: niedriger=besser (Grün wenn <= green)
 CRON_JOBS: list[dict] = [
     {"label": "Intraday-Kurse",          "expr": "*/15 9-21 * * 1-5",  "task": "intraday", "desc": "intraday_cron.sh — Mo–Fr 09–22 Uhr alle 15 Min"},
-    {"label": "OHLCV-Preisdaten",        "expr": "45 22 * * 1-5",      "task": "eod",      "desc": "eod_update_cron.sh — Mo–Fr 22:45"},
-    {"label": "W3-Scores + Charts",      "expr": "15 23 * * 1-5",      "task": "scores",   "desc": "run_w3_cron.sh — Mo–Fr 23:15"},
+    {"label": "OHLCV-Preisdaten",        "expr": "45 22 * * 1-5",      "task": "eod",      "desc": "eod_update_cron.sh — Mo–Fr 22:45 (enthält IV-Daten)"},
+    {"label": "W3-Scores + Charts",      "expr": "15 23 * * 1-5",      "task": "scores",   "desc": "run_w3_cron.sh — Mo–Fr 23:15 (enthält Charts-Regenerierung)"},
     {"label": "Klasse (Full-Reclassify)","expr": "0 6 1 1,4,7,10 *",   "task": "classify", "desc": "determine_class.py — 1. Jan/Apr/Jul/Okt 06:00"},
     {"label": "disco Sync",              "expr": "30 8 * * 1",          "task": None,       "desc": "disco_sync_cron.sh — Mo 08:30"},
     {"label": "Gateway-Health",          "expr": "*/1 * * * *",         "task": None,       "desc": "check_gateway.py — jede Minute"},
