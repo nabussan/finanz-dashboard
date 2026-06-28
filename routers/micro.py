@@ -118,13 +118,24 @@ async def _load_from_db(pool, cluster_id: int | None) -> list[dict]:
     else:
         rows = await pool.fetch(
             f"""
-            SELECT ticker, updated, source, exchange,
-                   pe, ev_ebitda, roe, debt_equity, roic, revenue_growth,
-                   ranking_score, ranking_pos{sub_cols_bare},
-                   {has_prices_expr.format(alias='')}
-            FROM fundamentals
-            WHERE updated = (SELECT MAX(updated) FROM fundamentals)
-            ORDER BY ranking_score DESC NULLS LAST
+            SELECT DISTINCT f.ticker, f.updated, f.source, f.exchange,
+                   f.pe, f.ev_ebitda, f.roe, f.debt_equity, f.roic, f.revenue_growth,
+                   f.ranking_score, f.ranking_pos{sub_cols_bare.replace(', ', ', f.')},
+                   {has_prices_expr.format(alias='f.')}
+            FROM fundamentals f
+            WHERE f.updated = (SELECT MAX(updated) FROM fundamentals)
+              AND EXISTS (
+                SELECT 1 FROM cluster_items ci
+                JOIN clusters c ON c.id = ci.cluster_id
+                JOIN cluster_views cv ON cv.cluster_id = c.id
+                WHERE cv.view_name = 'micro'
+                  AND (
+                    upper(split_part(ci.tv_symbol, ':', 2)) = upper(f.ticker)
+                    OR upper(ci.tv_symbol) = upper(f.ticker)
+                    OR upper(split_part(ci.tv_symbol, ':', 2) || '_' || split_part(ci.tv_symbol, ':', 1)) = upper(f.ticker)
+                  )
+              )
+            ORDER BY f.ranking_score DESC NULLS LAST
             """
         )
     return [dict(r) for r in rows]
