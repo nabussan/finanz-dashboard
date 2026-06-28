@@ -23,8 +23,16 @@ _KNOWN_IBKR_EXCHANGES = {
     "TPEX",  # Taipei Exchange (Taiwan OTC)
     "TSE",   # Tokyo Stock Exchange (IBKR: TSEJ)
     "TWSE",  # Taiwan Stock Exchange
-    "SSE",   # Shanghai Stock Exchange (IBKR: SEHKNTL via Stock Connect)
-    "SZSE",  # Shenzhen Stock Exchange (IBKR: SEHKSZSE via Stock Connect)
+    "SSE",     # Shanghai Stock Exchange (IBKR: SEHKNTL via Stock Connect)
+    "SZSE",    # Shenzhen Stock Exchange (IBKR: SEHKSZSE via Stock Connect)
+    "ATHEX",   # Athens Exchange
+    "BME",     # Bolsa de Madrid
+    "BSESOF",  # Sofia / Bucharest Stock Exchange
+    "GPW",     # Warsaw Stock Exchange
+    "MIL",     # Borsa Italiana (Milan)
+    "OMXCOP",  # NASDAQ OMX Copenhagen
+    "OMXSTO",  # NASDAQ OMX Stockholm
+    "TASE",    # Tel Aviv Stock Exchange
 }
 
 
