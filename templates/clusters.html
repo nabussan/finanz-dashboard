@@ -138,4 +138,11 @@
 
 {% endif %}
 
+<script>
+document.querySelectorAll('details').forEach(d => {
+  d.addEventListener('toggle', () => {
+    if (d.open) d.querySelectorAll('textarea').forEach(ta => { ta.value = ''; });
+  });
+});
+</script>
 {% endblock %}
