@@ -19,6 +19,10 @@ _KNOWN_IBKR_EXCHANGES = {
     "NYSE", "NASDAQ", "AMEX", "ARCA",
     "XETR", "TSX", "TSXV", "HKEX", "OTC",
     "LSE", "EURONEXT", "ASX", "SIX", "OMX", "KRX",
+    "SGX",   # Singapore Exchange
+    "TPEX",  # Taipei Exchange (Taiwan OTC)
+    "TSE",   # Tokyo Stock Exchange (IBKR: TSEJ)
+    "TWSE",  # Taiwan Stock Exchange
 }
 
 
