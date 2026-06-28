@@ -39,7 +39,7 @@ _PIPELINE_TASKS = {
 def _is_today(dt) -> bool:
     if dt is None:
         return False
-    d = dt.date() if hasattr(dt, "date") else dt
+    d = dt.astimezone().date() if hasattr(dt, "astimezone") else dt
     return d == date.today()
 
 

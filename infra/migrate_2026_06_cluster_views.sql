@@ -2,6 +2,8 @@
 -- Vorher prüfen: SELECT name, COUNT(*) FROM clusters GROUP BY name HAVING COUNT(*) > 1;
 -- Duplikate 2026-06-27: XLI (micro+watchlist), Aktien-US_1c459 (micro+watchlist), Optionen (micro+portfolio)
 
+DO $$ BEGIN ASSERT current_database() = 'finanz_live', 'Falsche DB! Erwartet: finanz_live'; END $$;
+
 BEGIN;
 
 -- 1. Join-Tabelle anlegen

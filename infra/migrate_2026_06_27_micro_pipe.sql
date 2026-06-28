@@ -1,6 +1,8 @@
 -- Migration 2026-06-27: Watchlist/PF/Micro-Cluster-Tabellen + micro_list kind
 -- Anwenden auf bestehende Installationen:
---   PGPASSWORD=... psql -U finanz -h localhost -d finanz -f infra/migrate_2026_06_27_micro_pipe.sql
+--   PGPASSWORD=... psql -U finanz -h localhost -d finanz_live -f infra/migrate_2026_06_27_micro_pipe.sql
+
+DO $$ BEGIN ASSERT current_database() = 'finanz_live', 'Falsche DB! Erwartet: finanz_live'; END $$;
 
 -- Cluster-Tabellen (Watchlists, Portfolio-Listen, Micro-Listen)
 CREATE TABLE IF NOT EXISTS clusters (

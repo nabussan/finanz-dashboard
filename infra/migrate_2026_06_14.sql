@@ -1,6 +1,8 @@
 -- Migration 2026-06-14: Neue Spalten fundamentals + prices-Tabelle
 -- Anwenden auf bestehende Installationen:
---   PGPASSWORD=... psql -U finanz -h localhost -d finanz -f infra/migrate_2026_06_14.sql
+--   PGPASSWORD=... psql -U finanz -h localhost -d finanz_live -f infra/migrate_2026_06_14.sql
+
+DO $$ BEGIN ASSERT current_database() = 'finanz_live', 'Falsche DB! Erwartet: finanz_live'; END $$;
 
 ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS exchange TEXT NOT NULL DEFAULT '';
 ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS roic     NUMERIC;
