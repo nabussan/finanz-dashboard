@@ -172,20 +172,15 @@ async def micro_page(request: Request, cluster_id: int | None = None):
     pool = await db.get_pool()
     clusters = await _load_clusters(pool)
 
-    # Cluster-JSON bevorzugen (cluster-relativ), dann DB-Fallback
+    # Cluster-JSON bevorzugen (cluster-relativ), dann DB
     tickers = _load_cluster_json(cluster_id)
     source = "cluster-json"
     scored_at = _cluster_json_ts(cluster_id)
 
     if not tickers:
         tickers = await _load_from_db(pool, cluster_id)
-        source = "db" if tickers else "json-fallback"
+        source = "db" if tickers else "empty"
         scored_at = tickers[0]["updated"].isoformat() if tickers else None
-
-    # JSON-Fallback nur wenn ein konkretes Cluster gewählt ist (nicht Alle-View)
-    if not tickers and cluster_id is not None:
-        tickers = _load_from_json_fallback()
-        source = "json-fallback"
 
     # Universe-Scores für Cluster-JSON-View aus DB nachladen
     if source == "cluster-json" and cluster_id and tickers:
