@@ -888,6 +888,41 @@ td a:hover { text-decoration: underline; }
 .rsm-filter-btn--hold.rsm-filter-btn--active { color: var(--blue);   border-color: var(--blue);   background: rgba(79,142,247,.08); }
 .rsm-filter-btn--wait.rsm-filter-btn--active { color: var(--orange); border-color: var(--orange); background: rgba(240,165,0,.08); }
 
+/* Alle-Toggle: visuell vom Cluster-Filter abgesetzt */
+.rsm-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rsm-toggle-btn::before {
+  content: '○';
+  font-size: 10px;
+}
+.rsm-toggle-btn--on {
+  color: var(--text);
+  border-color: var(--text);
+  background: rgba(255,255,255,.05);
+}
+.rsm-toggle-btn--on::before { content: '●'; }
+.rsm-toggle-btn:hover { border-color: var(--blue); color: var(--text); }
+
+.rsm-filter-sep {
+  width: 1px;
+  background: var(--border);
+  margin: 2px 4px;
+  align-self: stretch;
+}
+
 .rsm-split { display: flex; flex: 1; min-height: 0; }
 
 .rsm-signal-panel {

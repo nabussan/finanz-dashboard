@@ -204,6 +204,11 @@ async def micro_page(request: Request, cluster_id: int | None = None):
 
     active_cluster = next((c for c in clusters if c["id"] == cluster_id), None)
 
+    n_universe = await pool.fetchval(
+        "SELECT COUNT(*) FROM fundamentals "
+        "WHERE updated = (SELECT MAX(updated) FROM fundamentals) AND ranking_pos IS NOT NULL"
+    ) or 0
+
     return templates.TemplateResponse(
         request, "micro.html",
         {
@@ -216,6 +221,7 @@ async def micro_page(request: Request, cluster_id: int | None = None):
             "json_dir_ok": config.MICRO_JSON_DIR.exists(),
             "rank_status": _rank_status["status"],
             "micro_cluster_dir": str(config.MICRO_CLUSTER_DIR),
+            "n_universe": n_universe,
         },
     )
 

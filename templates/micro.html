@@ -6,7 +6,9 @@
 {# ── Header: Cluster-Tabs + Ranking-Button ────────────────────────────────── #}
 <div class="rsm-header micro-header">
   <nav class="rsm-filter-nav">
-    <a href="/micro" class="rsm-filter-btn{% if not active_cluster_id %} rsm-filter-btn--active{% endif %}">Alle</a>
+    <a href="/micro" class="rsm-toggle-btn{% if not active_cluster_id %} rsm-toggle-btn--on{% endif %}"
+       title="Alle {{ n_universe }} Ticker im Universum">Alle</a>
+    {% if clusters %}<span class="rsm-filter-sep"></span>{% endif %}
     {% for c in clusters %}
     <a href="/micro?cluster_id={{ c.id }}" class="rsm-filter-btn{% if active_cluster_id == c.id %} rsm-filter-btn--active{% endif %}">{{ c.name }}</a>
     {% endfor %}
@@ -133,7 +135,14 @@
         <td class="{{ ampel('evebitda', t.ev_ebitda) }}">{{ "%.1f"|format(t.ev_ebitda)    if t.ev_ebitda is not none and t.ev_ebitda == t.ev_ebitda else "—" }}</td>
         <td class="{{ ampel('roe', t.roe) }}">{{ "%.1f"|format(t.roe)          if t.roe is not none and t.roe == t.roe else "—" }}</td>
         <td class="{{ ampel('de', t.debt_equity) }}">{{ "%.2f"|format(t.debt_equity)  if t.debt_equity is not none and t.debt_equity == t.debt_equity else "—" }}</td>
-        <td class="micro-univ">{{ t.universe_rank or "—" }}</td>
+        {%- set _ur = t.universe_rank -%}
+        {%- if _ur and n_universe -%}
+          {%- set _pct = _ur / n_universe -%}
+          {%- set _ucls = "ticker-stat--green" if _pct <= 0.33 else ("ticker-stat--orange" if _pct <= 0.67 else "ticker-stat--red") -%}
+        {%- else -%}
+          {%- set _ucls = "" -%}
+        {%- endif -%}
+        <td class="micro-univ {{ _ucls }}">{{ _ur or "—" }}</td>
       </tr>
       {% endfor %}
       </tbody>
