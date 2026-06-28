@@ -48,7 +48,7 @@
       <a class="chart-mode-btn chart-mode-link" id="tv-chart-link" href="#" target="_blank" rel="noopener">Chart</a>
     </div>
     <div id="no-prices-hint" class="wl-notice wl-notice--warn" style="display:none; margin: 0 0 6px;">
-      Keine IBKR-Kursdaten für diesen Ticker (nur Fundamentaldaten vorhanden).
+      Keine IBKR-Kursdaten für <span id="no-prices-sym">diesen Ticker</span> (nur Fundamentaldaten vorhanden).
       {% if active_cluster_id %}
       <span style="margin-left:8px; font-size:11px; color:var(--muted);">Wird beim nächsten Cron-Lauf automatisch geholt.</span>
       {% else %}
@@ -185,6 +185,10 @@
     var hint = document.getElementById('no-prices-hint');
     if (!hint) return;
     hint.style.display = hasPrices ? 'none' : 'flex';
+    if (!hasPrices && _currentSymbol) {
+      var sym = document.getElementById('no-prices-sym');
+      if (sym) sym.textContent = _currentSymbol;
+    }
   }
 
   window.trackCurrentSymbol = function () {
