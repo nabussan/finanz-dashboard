@@ -38,6 +38,7 @@ _KNOWN_IBKR_EXCHANGES = {
     "OMXRSE",     # NASDAQ OMX Riga (Baltic)
     "TRADEGATE",  # Tradegate Exchange (Germany)
     "BMV",        # Bolsa Mexicana de Valores
+    "BX",         # BX Swiss (IBKR: EBS, wie SIX)
 }
 
 
