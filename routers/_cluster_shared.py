@@ -25,14 +25,19 @@ _KNOWN_IBKR_EXCHANGES = {
     "TWSE",  # Taiwan Stock Exchange
     "SSE",     # Shanghai Stock Exchange (IBKR: SEHKNTL via Stock Connect)
     "SZSE",    # Shenzhen Stock Exchange (IBKR: SEHKSZSE via Stock Connect)
-    "ATHEX",   # Athens Exchange
-    "BME",     # Bolsa de Madrid
-    "BSESOF",  # Sofia / Bucharest Stock Exchange
-    "GPW",     # Warsaw Stock Exchange
-    "MIL",     # Borsa Italiana (Milan)
-    "OMXCOP",  # NASDAQ OMX Copenhagen
-    "OMXSTO",  # NASDAQ OMX Stockholm
-    "TASE",    # Tel Aviv Stock Exchange
+    "ATHEX",      # Athens Exchange
+    "BME",        # Bolsa de Madrid
+    "BSESOF",     # Sofia / Bucharest Stock Exchange
+    "GPW",        # Warsaw Stock Exchange
+    "MIL",        # Borsa Italiana (Milan)
+    "OMXCOP",     # NASDAQ OMX Copenhagen
+    "OMXSTO",     # NASDAQ OMX Stockholm
+    "TASE",       # Tel Aviv Stock Exchange
+    "CBOE",       # Chicago Board Options Exchange (US)
+    "OMXHEX",     # NASDAQ OMX Helsinki
+    "OMXRSE",     # NASDAQ OMX Riga (Baltic)
+    "TRADEGATE",  # Tradegate Exchange (Germany)
+    "BMV",        # Bolsa Mexicana de Valores
 }
 
 
