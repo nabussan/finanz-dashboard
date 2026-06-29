@@ -18,6 +18,7 @@ async def rsm_page(request: Request, sort: str = "score", dir: str = ""):
     order_col = sort if sort in allowed_sorts else "score"
     order_dir = dir if dir in ("asc", "desc") else _DEFAULT_DIR.get(order_col, "desc")
     nulls = "LAST" if order_dir == "desc" else "FIRST"
+    order_expr = "SPLIT_PART(ticker, ':', 2)" if order_col == "ticker" else order_col
 
     rows = await pool.fetch(
         f"""
@@ -25,7 +26,7 @@ async def rsm_page(request: Request, sort: str = "score", dir: str = ""):
                klasse, klasse_updated, run_at AT TIME ZONE 'Europe/Berlin' AS run_at
         FROM signals
         WHERE run_date = (SELECT MAX(run_date) FROM signals)
-        ORDER BY {order_col} {order_dir.upper()} NULLS {nulls}
+        ORDER BY {order_expr} {order_dir.upper()} NULLS {nulls}
         """
     )
     if rows and rows[0]["run_at"]:
