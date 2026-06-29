@@ -108,8 +108,30 @@ def _build_weekly(df_w: pd.DataFrame, bench_w: pd.DataFrame) -> dict | None:
         for i, r in df_w.iterrows() if not any(pd.isna([r.open, r.high, r.low, r.close]))
     ]
 
-    # Degraded mode: not enough benchmark history for signals
+    # Degraded mode: not enough benchmark history for z-slope signals,
+    # but WillVal on normalised close still works when ticker has enough bars
     if bench_w.empty or len(bench_w) < _MIN_BENCH:
+        if len(df_w) >= WV_NORM + SL_LEN + 5:
+            norm_ratio = df_w["close"] / df_w["close"].iloc[0]
+            wv_w = _compute_willval(norm_ratio, short=WV_SHORT, long=WV_LONG, n=WV_NORM)
+            sl_w = _linreg_slope(wv_w, length=SL_LEN)
+            cutoff = wv_w.first_valid_index() or df_w.index[0]
+            mask = df_w.index >= cutoff
+            df_cut = df_w[mask]
+            ohlc_cut = [
+                {"time": str(i)[:10], "open": round(float(r.open), 4), "high": round(float(r.high), 4),
+                 "low": round(float(r.low), 4), "close": round(float(r.close), 4)}
+                for i, r in df_cut.iterrows() if not any(pd.isna([r.open, r.high, r.low, r.close]))
+            ]
+            return {
+                "ohlc": ohlc_cut,
+                "dates": _dates(df_cut.index),
+                "z_slope": [None] * len(df_cut),
+                "wv": _clean(wv_w[mask].values),
+                "w2": _w2_state(wv_w[mask], sl_w[mask]),
+                "entries": [],
+                "exits": [],
+            }
         return {
             "ohlc": ohlc_all,
             "dates": _dates(df_w.index),

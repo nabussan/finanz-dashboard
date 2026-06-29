@@ -182,16 +182,25 @@ async def micro_page(request: Request, cluster_id: int | None = None):
         source = "db" if tickers else "empty"
         scored_at = tickers[0]["updated"].isoformat() if tickers else None
 
-    # Universe-Scores + Rang für Cluster-JSON-View aus DB nachladen
+    # Universe-Scores + Rang + has_prices für Cluster-JSON-View aus DB nachladen
     if source == "cluster-json" and cluster_id and tickers:
         ticker_names = [t["ticker"].upper() for t in tickers if t.get("ticker")]
         if ticker_names:
             univ_rows = await pool.fetch(
-                """SELECT upper(ticker) AS ticker, ranking_score AS score_universe,
-                          ranking_pos AS universe_rank
-                   FROM fundamentals
-                   WHERE updated = (SELECT MAX(updated) FROM fundamentals)
-                   AND upper(ticker) = ANY($1::text[])""",
+                """SELECT upper(f.ticker) AS ticker,
+                          f.ranking_score AS score_universe,
+                          f.ranking_pos AS universe_rank,
+                          f.exchange,
+                          EXISTS (
+                            SELECT 1 FROM rsm_prices rp
+                            WHERE rp.ticker = CASE
+                              WHEN f.exchange IS NOT NULL AND f.exchange <> ''
+                              THEN f.exchange || ':' || f.ticker
+                              ELSE f.ticker END
+                          ) AS has_prices
+                   FROM fundamentals f
+                   WHERE f.updated = (SELECT MAX(updated) FROM fundamentals)
+                   AND upper(f.ticker) = ANY($1::text[])""",
                 ticker_names,
             )
             univ_map = {r["ticker"]: dict(r) for r in univ_rows}
@@ -199,6 +208,7 @@ async def micro_page(request: Request, cluster_id: int | None = None):
                 row = univ_map.get(t["ticker"].upper(), {})
                 t["score_universe"] = row.get("score_universe")
                 t["universe_rank"] = row.get("universe_rank")
+                t["has_prices"] = row.get("has_prices", False)
 
     # Cluster-Rang (1..N) neu vergeben aus Cluster-JSON
     # Bei DB-Daten: ranking_pos aus DB verwenden
