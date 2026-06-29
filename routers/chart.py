@@ -95,9 +95,31 @@ async def _get_benchmark(pool, ticker: str) -> str:
     return row["benchmark"] if row else "AMEX:SPY"
 
 
+_MIN_BENCH = W3_N + SL_LEN + 10  # minimum benchmark bars for meaningful signals
+
+
 def _build_weekly(df_w: pd.DataFrame, bench_w: pd.DataFrame) -> dict | None:
-    if df_w.empty or bench_w.empty:
+    if df_w.empty:
         return None
+
+    ohlc_all = [
+        {"time": str(i)[:10], "open": round(float(r.open), 4), "high": round(float(r.high), 4),
+         "low": round(float(r.low), 4), "close": round(float(r.close), 4)}
+        for i, r in df_w.iterrows() if not any(pd.isna([r.open, r.high, r.low, r.close]))
+    ]
+
+    # Degraded mode: not enough benchmark history for signals
+    if bench_w.empty or len(bench_w) < _MIN_BENCH:
+        return {
+            "ohlc": ohlc_all,
+            "dates": _dates(df_w.index),
+            "z_slope": [None] * len(df_w),
+            "wv": [None] * len(df_w),
+            "w2": [None] * len(df_w),
+            "entries": [],
+            "exits": [],
+        }
+
     try:
         w3 = compute_w3_signal(df_w, bench_w, exit_be=W3_EXIT_BE, z_entry=W3_Z_ENTRY, n=W3_N)
     except Exception:
@@ -132,10 +154,14 @@ def _build_weekly(df_w: pd.DataFrame, bench_w: pd.DataFrame) -> dict | None:
 
 
 def _build_daily(df_d: pd.DataFrame, bench_d: pd.DataFrame) -> dict | None:
-    if df_d.empty or bench_d.empty:
+    if df_d.empty:
         return None
 
-    ratio_d = df_d["close"] / bench_d["close"].reindex(df_d.index).ffill()
+    has_bench = not bench_d.empty and len(bench_d) >= _MIN_BENCH
+    if has_bench:
+        ratio_d = df_d["close"] / bench_d["close"].reindex(df_d.index).ffill()
+    else:
+        ratio_d = df_d["close"] / df_d["close"].iloc[0]  # normalised close as fallback
     wv_d = _compute_willval(ratio_d, short=WV_SHORT, long=WV_LONG, n=WV_NORM)
     sl_d = _linreg_slope(wv_d, length=SL_LEN)
 
