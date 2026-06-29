@@ -39,13 +39,22 @@
       </div>
     {% else %}
     <table class="rsm-table">
+      {%- macro sort_link(col, label, default_dir) -%}
+        {%- if sort == col -%}
+          {%- set next_dir = "asc" if dir == "desc" else "desc" -%}
+          {%- set arrow = " ↑" if dir == "asc" else " ↓" -%}
+          <a href="/rsm?sort={{ col }}&dir={{ next_dir }}">{{ label }}{{ arrow }}</a>
+        {%- else -%}
+          <a href="/rsm?sort={{ col }}&dir={{ default_dir }}">{{ label }}</a>
+        {%- endif -%}
+      {%- endmacro -%}
       <thead>
         <tr>
-          <th><a href="/rsm?sort=ticker">Ticker</a></th>
-          <th><a href="/rsm?sort=signal">Signal</a></th>
-          <th><a href="/rsm?sort=score">Score ↓</a></th>
-          <th><a href="/rsm?sort=z_score">z-Scr</a></th>
-          <th><a href="/rsm?sort=iv_rank">IVR</a></th>
+          <th>{{ sort_link("ticker", "Ticker", "asc") }}</th>
+          <th>{{ sort_link("signal", "Signal", "asc") }}</th>
+          <th>{{ sort_link("score", "Score", "desc") }}</th>
+          <th>{{ sort_link("z_score", "z-Scr", "desc") }}</th>
+          <th>{{ sort_link("iv_rank", "IVR", "desc") }}</th>
           <th>VRP</th>
           <th>Ann%</th>
           <th>Klasse</th>

@@ -8,11 +8,16 @@ router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 
+_DEFAULT_DIR = {"ticker": "asc", "signal": "asc", "score": "desc", "z_score": "desc", "iv_rank": "desc"}
+
+
 @router.get("/rsm", response_class=HTMLResponse)
-async def rsm_page(request: Request, sort: str = "score"):
+async def rsm_page(request: Request, sort: str = "score", dir: str = ""):
     pool = await db.get_pool()
     allowed_sorts = {"score", "ticker", "signal", "z_score", "iv_rank"}
     order_col = sort if sort in allowed_sorts else "score"
+    order_dir = dir if dir in ("asc", "desc") else _DEFAULT_DIR.get(order_col, "desc")
+    nulls = "LAST" if order_dir == "desc" else "FIRST"
 
     rows = await pool.fetch(
         f"""
@@ -20,7 +25,7 @@ async def rsm_page(request: Request, sort: str = "score"):
                klasse, klasse_updated, run_at AT TIME ZONE 'Europe/Berlin' AS run_at
         FROM signals
         WHERE run_date = (SELECT MAX(run_date) FROM signals)
-        ORDER BY {order_col} DESC NULLS LAST
+        ORDER BY {order_col} {order_dir.upper()} NULLS {nulls}
         """
     )
     if rows and rows[0]["run_at"]:
@@ -37,6 +42,7 @@ async def rsm_page(request: Request, sort: str = "score"):
             "signals": [dict(r) for r in rows],
             "last_run": last_run,
             "sort": order_col,
+            "dir": order_dir,
             "klasse_stand": klasse_stand,
         },
     )
