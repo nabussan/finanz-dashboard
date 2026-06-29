@@ -26,7 +26,7 @@
       <a class="chart-mode-btn chart-mode-link" id="tv-chart-link" href="#" target="_blank" rel="noopener">Chart</a>
     </div>
     <div class="chart-body">
-      <iframe id="chart-frame" src="/portfolio-charts" title="RSM Chart"></iframe>
+      <iframe id="chart-frame" src="" title="RSM Chart"></iframe>
       <div id="tv-chart"></div>
     </div>
   </div>
@@ -62,12 +62,10 @@
       </thead>
       <tbody id="rsm-tbody">
       {% for s in signals %}
-      {%- set anchor = "pnl-" + s.ticker | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
       {%- set sig = (s.signal or 'wait') | lower -%}
       {%- set sym = s.ticker.split(':')[1] if ':' in s.ticker else s.ticker -%}
       <tr class="signal-row signal-row--{{ sig }} {% if sig in ('buy','sell','hold') %}rsm-{{ sig }}{% endif %}"
           data-signal="{{ sig }}"
-          data-anchor="{{ anchor }}"
           data-ticker="{{ s.ticker }}"
           onclick="switchToTicker(this)">
         <td class="ticker-cell">{{ sym }}</td>
@@ -106,15 +104,6 @@
   const iframe = document.getElementById('chart-frame');
   const tvDiv  = document.getElementById('tv-chart');
 
-  const FRAME_URL = {
-    'W': '/portfolio-charts',
-    'D': '/portfolio-charts-daily',
-  };
-
-  let _frameBaseUrl  = '/portfolio-charts';
-  let _frameReady    = false;
-  let _pendingAnchor = null;
-
   function updateExtLinks(tvSymbol) {
     const tvOverview = document.getElementById('tv-overview-link');
     const tvChart    = document.getElementById('tv-chart-link');
@@ -122,47 +111,16 @@
     if (tvChart)    tvChart.href    = 'https://www.tradingview.com/chart/9U3N6gv0/?symbol=' + encodeURIComponent(tvSymbol);
   }
 
-  function callInFrame(anchor) {
-    try {
-      const cw = iframe && iframe.contentWindow;
-      if (!cw) return;
-      if (typeof cw.activateTab === 'function') {
-        if (typeof cw.selectList === 'function') cw.selectList('');
-        cw.activateTab(anchor);
-      } else {
-        cw.location.hash = anchor;
-      }
-    } catch (e) {
-      if (iframe) iframe.src = _frameBaseUrl + '#' + anchor;
-    }
-  }
-
-  if (iframe) {
-    iframe.addEventListener('load', function () {
-      _frameReady = true;
-      const target = _pendingAnchor;
-      _pendingAnchor = null;
-      if (target) {
-        callInFrame(target);
-      } else {
-        const first = document.querySelector('.signal-row:not(.rsm-hidden)');
-        if (first) callInFrame(first.dataset.anchor);
-      }
-    });
-  }
-
-  // Init: erste Zeile als aktiv vormerken, damit W/D vor dem ersten
-  // Zeilen-Klick schon funktioniert.
-  const firstRow = document.querySelector('.signal-row[data-anchor]');
+  // Init: erste Zeile vormerken
+  const firstRow = document.querySelector('.signal-row[data-ticker]');
   if (firstRow) {
-    _currentRow    = firstRow;
-    _pendingAnchor = firstRow.dataset.anchor;
+    _currentRow = firstRow;
     updateExtLinks(firstRow.dataset.ticker);
+    if (iframe) iframe.src = '/chart/' + encodeURIComponent(firstRow.dataset.ticker) + '?period=W';
   }
 
   function loadChart(row, mode) {
     mode = mode || _mode;
-    const anchor = row.dataset.anchor;
     _currentRow = row;
     updateExtLinks(row.dataset.ticker);
 
@@ -190,16 +148,9 @@
     }
 
     if (tvDiv) tvDiv.style.display = 'none';
-    if (iframe) iframe.style.display = 'block';
-
-    const url = FRAME_URL[mode] || FRAME_URL['W'];
-    if (url === _frameBaseUrl && _frameReady) {
-      callInFrame(anchor);
-    } else {
-      _frameBaseUrl  = url;
-      _frameReady    = false;
-      _pendingAnchor = anchor;
-      if (iframe) iframe.src = url + '#' + anchor;
+    if (iframe) {
+      iframe.style.display = 'block';
+      iframe.src = '/chart/' + encodeURIComponent(row.dataset.ticker) + '?period=' + mode;
     }
   }
 
@@ -217,7 +168,7 @@
       r.classList.remove('signal-row--active');
     });
     row.classList.add('signal-row--active');
-    if (!row.dataset.anchor) return;
+    if (!row.dataset.ticker) return;
     loadChart(row);
   };
 

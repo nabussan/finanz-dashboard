@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists
+from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists, chart
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
@@ -30,9 +30,8 @@ _PIPELINE_TASKS = {
     "eod":    ("EOD-Update (OHLCV)",          ["src/eod_update.py", "--skip-ibkr"]),  # --skip-ibkr = kein Options-Screen
     "iv":     ("IV-Daten (IBKR Options)",      ["src/run_w3.py", "--ibkr-only"]),
     "scores": ("W3-Scores",                    ["src/run_w3.py", "--skip-update", "--skip-ibkr", "--skip-notify"]),
-    "charts": ("Charts neu generieren",        ["src/make_charts.py"]),
     "classify": ("Klasse neu berechnen (alle Ticker)", ["src/determine_class.py"]),
-    "full":   ("Alles (EOD + IV + Scores + Charts)", None),  # handled separately
+    "full":   ("Alles (EOD + IV + Scores)", None),  # handled separately
 }
 
 
@@ -84,11 +83,6 @@ async def _pipeline_status(pool) -> dict[str, str]:
         pool.fetchval("SELECT max(run_at) FROM signals"),
     )
 
-    charts_file = RSM_DIR / "data" / "charts" / "portfolio.html"
-    charts_fresh = charts_file.exists() and _is_today(
-        datetime.fromtimestamp(charts_file.stat().st_mtime)
-    )
-
     classify_fresh = False
     sqlite_path = RSM_DIR / "data" / "rsm_data.db"
     if sqlite_path.exists():
@@ -111,7 +105,6 @@ async def _pipeline_status(pool) -> dict[str, str]:
         "eod": _is_today(eod_max),
         "iv": _is_today(run_at_max),
         "scores": _is_today(run_at_max),
-        "charts": charts_fresh,
         "classify": classify_fresh,
         "full": full_fresh,
     }
@@ -177,6 +170,7 @@ app.include_router(micro.router)
 app.include_router(micro_lists.router)
 app.include_router(watchlist.router)
 app.include_router(portfolio_lists.router)
+app.include_router(chart.router)
 
 
 async def _system_status(pool) -> list[dict]:
@@ -381,7 +375,7 @@ async def admin_run(task: str):
     # in routers/_cluster_shared.py.
     if task == "full":
         # ondemand_update.sh = eod_update.py (OHLCV+IV) && run_w3.py (Scores)
-        # && make_charts.py -- exakt die Sequenz, die das Label verspricht.
+        # -- exakt die Sequenz, die das Label verspricht.
         # Vorher zeigte "full" faelschlich auf run_w3_cron.sh, das den
         # EOD/OHLCV/IV-Schritt komplett ausliess (Befund 2026-06-23). Als
         # Nebeneffekt bringt ondemand_update.sh sein eigenes flock-Lock +
@@ -392,11 +386,8 @@ async def admin_run(task: str):
         # 'full' braucht keine PID-Datei -- _task_running() prueft stattdessen
         # ondemand_update.sh's eigenes flock-Lock direkt (siehe _pipeline_status()).
     elif task == "eod":
-        # eod-Update immer mit anschliessender Chart-Regenerierung verketten:
-        # Neue Watchlist-Ticker erscheinen in portfolio.html nur nach make_charts.py.
-        # bash-Subprozess haelt die PID-Datei bis beide Schritte abgeschlossen sind.
-        cmd = f"{venv_python} src/eod_update.py --skip-ibkr && {venv_python} src/make_charts.py"
-        proc = subprocess.Popen(["bash", "-c", cmd], cwd=str(RSM_DIR), start_new_session=True)
+        proc = subprocess.Popen([venv_python, "src/eod_update.py", "--skip-ibkr"],
+                                 cwd=str(RSM_DIR), start_new_session=True)
         (RSM_DIR / "data" / f".run_{task}.pid").write_text(str(proc.pid))
     else:
         _, args = _PIPELINE_TASKS[task]

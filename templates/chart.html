@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Chart — {{ ticker }}</title>
+<script src="https://unpkg.com/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#131722;color:#d1d4dc;font-family:-apple-system,sans-serif;font-size:13px;display:flex;flex-direction:column}
+#wrap{flex:1;overflow-y:auto}
+.ptitle{font-size:14px;font-weight:600;padding:6px 10px;color:#d1d4dc;display:flex;align-items:center;gap:10px}
+.clabel{font-size:9px;color:#787b86;padding:2px 10px;margin-top:4px}
+.leg{display:flex;gap:14px;padding:3px 10px 4px;font-size:10px;color:#787b86}
+.leg span{display:flex;align-items:center;gap:4px}
+.dot{width:9px;height:9px;border-radius:50%}
+{% if period == 'W' %}
+.plink{color:#ef9a9a;text-decoration:none;font-size:11px;font-weight:400;padding:1px 7px;border:1px solid rgba(239,83,80,0.35);border-radius:3px}
+.plink:hover{background:rgba(239,83,80,0.15)}
+{% else %}
+.plink{color:#7eb2ff;text-decoration:none;font-size:11px;font-weight:400;padding:1px 7px;border:1px solid rgba(41,98,255,0.35);border-radius:3px}
+.plink:hover{background:rgba(41,98,255,0.15)}
+{% endif %}
+.plink--ext{color:#787b86;border-color:rgba(120,123,134,0.35)}
+.plink--ext:hover{background:rgba(120,123,134,0.15)}
+body.embedded .ptitle{display:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="ptitle">
+    <span>{{ ticker }}</span>
+    <a class="plink plink--ext" href="https://www.tradingview.com/symbols/{{ ticker | replace(':', '-') }}/" target="_blank" rel="noopener">TV Overview</a>
+    <a class="plink plink--ext" href="https://www.tradingview.com/chart/9U3N6gv0/?symbol={{ ticker }}" target="_blank" rel="noopener">Chart</a>
+  </div>
+  {% if period == 'W' %}
+  <div class="clabel">Preis (weekly) &mdash; &#x25B2; Buy W3 &nbsp; &#x25BC; Sell W3</div>
+  {% else %}
+  <div class="clabel">Preis (daily) &mdash; Kalman grün/rot: K+/K&minus; &nbsp; Band: 1&times;ATR Softstop &nbsp; 2&times;ATR Hardstop</div>
+  {% endif %}
+  <div id="cp" style="height:280px"></div>
+  {% if period == 'W' %}
+  <div class="clabel">W3 z-Score &mdash; blau: z &nbsp; gelb: 1.0 (Entry) &nbsp; grau: 0</div>
+  <div id="cz" style="height:130px"></div>
+  <div class="clabel">WillVal (weekly) &mdash; lila: wv &nbsp; gestrichelt: 60 &nbsp; Hintergrund: W2</div>
+  {% else %}
+  <div class="clabel">WillVal (daily) &mdash; rosa: wv &nbsp; grün: 70 &nbsp; rot: 30 &nbsp; Hintergrund: W2</div>
+  {% endif %}
+  <div class="leg">
+    <span><span class="dot" style="background:rgba(38,166,154,0.7)"></span>Chance</span>
+    <span><span class="dot" style="background:rgba(120,123,134,0.5)"></span>Neutral</span>
+    <span><span class="dot" style="background:rgba(239,83,80,0.7)"></span>Risiko</span>
+  </div>
+  <div id="cw" style="height:130px"></div>
+</div>
+<script>
+const D = {{ data_json | safe }};
+const C = {
+  up:'#26a69a', dn:'#ef5350',
+  zl:'#2962ff', z0:'#787b86', ze:'#f6c026',
+  ww:'#9c27b0', wwd:'#ef9a9a', w60:'#555a6b',
+  kb1:'rgba(100,181,246,0.85)', kb2:'rgba(100,181,246,0.35)',
+  ch:'rgba(38,166,154,0.18)', nt:'rgba(120,123,134,0.12)', ri:'rgba(239,83,80,0.18)',
+};
+const opt = {
+  layout:{background:{color:'#131722'},textColor:'#d1d4dc'},
+  grid:{vertLines:{color:'#1e222d'},horzLines:{color:'#1e222d'}},
+  timeScale:{borderColor:'#2a2e39',timeVisible:true,rightOffset:12},
+  rightPriceScale:{borderColor:'#2a2e39'},
+  crosshair:{mode:1},
+};
+if (window.self !== window.top) document.body.classList.add('embedded');
+
+{% if period == 'W' %}
+const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt, height:280});
+const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.up,borderDownColor:C.dn,wickUpColor:C.up,wickDownColor:C.dn});
+cs.setData(D.ohlc);
+const mk = [];
+(D.entries||[]).forEach(t => mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'B',size:1}));
+(D.exits||[]).forEach(t => mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'S',size:1}));
+mk.sort((a,b) => a.time < b.time ? -1 : 1);
+cs.setMarkers(mk);
+
+const c2 = LightweightCharts.createChart(document.getElementById('cz'), {...opt, height:130});
+const validW = D.dates.filter((_,i) => D.z_slope[i] !== null);
+const zSer = c2.addLineSeries({color:C.zl,lineWidth:2,priceLineVisible:false});
+zSer.setData(D.dates.map((t,i) => D.z_slope[i] !== null ? {time:t,value:D.z_slope[i]} : null).filter(Boolean));
+c2.addLineSeries({color:C.z0,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+  .setData(validW.map(t => ({time:t,value:0})));
+c2.addLineSeries({color:C.ze,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+  .setData(validW.map(t => ({time:t,value:1})));
+
+const c3 = LightweightCharts.createChart(document.getElementById('cw'), {...opt, height:130});
+const bgData = D.dates.map((t,i) => {
+  const s = D.w2[i]; if (s === null) return null;
+  return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
+}).filter(Boolean);
+const bgSeries = c3.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
+bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
+bgSeries.setData(bgData);
+const wvSer = c3.addLineSeries({color:C.ww,lineWidth:2,priceLineVisible:false});
+wvSer.setData(D.dates.map((t,i) => D.wv[i] !== null ? {time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.ww} : null).filter(Boolean));
+const wvValidW = D.dates.filter((_,i) => D.wv[i] !== null);
+c3.addLineSeries({color:C.w60,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+  .setData(wvValidW.map(t => ({time:t,value:60})));
+
+const charts = [c1,c2,c3];
+charts.forEach((src,si) => src.timeScale().subscribeVisibleLogicalRangeChange(r => {
+  if (!r) return;
+  charts.forEach((dst,di) => { if (di!==si) dst.timeScale().setVisibleLogicalRange(r); });
+}));
+const priceMap = {}; D.ohlc.forEach(b => { priceMap[b.time] = b.close; });
+const zMap = {}; D.dates.forEach((t,i) => { if (D.z_slope[i]!==null) zMap[t] = D.z_slope[i]; });
+const wvMap = {}; D.dates.forEach((t,i) => { if (D.wv[i]!==null) wvMap[t] = D.wv[i]; });
+[[c1,cs,priceMap],[c2,zSer,zMap],[c3,wvSer,wvMap]].forEach(([src,_s,sMap],si,all) => {
+  src.subscribeCrosshairMove(param => {
+    all.forEach(([dst,dSer,dMap],di) => {
+      if (di===si) return;
+      if (!param.time || dMap[param.time]===undefined) { dst.clearCrosshairPosition(); return; }
+      dst.setCrosshairPosition(dMap[param.time], param.time, dSer);
+    });
+  });
+});
+['cp','cz','cw'].forEach(id => {
+  const div = document.getElementById(id);
+  div.addEventListener('wheel', e => {
+    if (e.clientX > div.getBoundingClientRect().right - 65) e.stopImmediatePropagation();
+  }, {capture:true, passive:false});
+});
+c1.timeScale().fitContent();
+
+{% else %}
+
+const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt, height:280});
+const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.up,borderDownColor:C.dn,wickUpColor:C.up,wickDownColor:C.dn});
+cs.setData(D.ohlc);
+if (D.kalman) {
+  const b2 = {color:C.kb2,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false};
+  c1.addLineSeries(b2).setData(D.dates.map((t,i) => D.k_upper2[i]!==null ? {time:t,value:D.k_upper2[i]} : null).filter(Boolean));
+  c1.addLineSeries(b2).setData(D.dates.map((t,i) => D.k_lower2[i]!==null ? {time:t,value:D.k_lower2[i]} : null).filter(Boolean));
+  const b1 = {color:C.kb1,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:false};
+  c1.addLineSeries(b1).setData(D.dates.map((t,i) => D.k_upper[i]!==null ? {time:t,value:D.k_upper[i]} : null).filter(Boolean));
+  c1.addLineSeries(b1).setData(D.dates.map((t,i) => D.k_lower[i]!==null ? {time:t,value:D.k_lower[i]} : null).filter(Boolean));
+  const kSer = c1.addLineSeries({color:C.up,lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+  kSer.setData(D.dates.map((t,i) => D.kalman[i]!==null ? {time:t,value:D.kalman[i],color:D.k_above[i]?C.up:C.dn} : null).filter(Boolean));
+  if (D.k_enter || D.k_exit) {
+    const mk = [];
+    (D.k_enter||[]).forEach(t => mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'K+',size:1}));
+    (D.k_exit||[]).forEach(t => mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'K-',size:1}));
+    mk.sort((a,b) => a.time < b.time ? -1 : 1);
+    cs.setMarkers(mk);
+  }
+}
+const c2 = LightweightCharts.createChart(document.getElementById('cw'), {...opt, height:130});
+const bgData = D.dates.map((t,i) => {
+  const s = D.w2[i]; if (s === null) return null;
+  return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
+}).filter(Boolean);
+const bgSeries = c2.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
+bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
+bgSeries.setData(bgData);
+const wvSer = c2.addLineSeries({color:C.wwd,lineWidth:2,priceLineVisible:false});
+wvSer.setData(D.dates.map((t,i) => D.wv[i] !== null ? {time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.wwd} : null).filter(Boolean));
+const wvValidD = D.dates.filter((_,i) => D.wv[i] !== null);
+c2.addLineSeries({color:C.up,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
+  .setData(wvValidD.map(t => ({time:t,value:70})));
+c2.addLineSeries({color:C.dn,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
+  .setData(wvValidD.map(t => ({time:t,value:30})));
+
+const charts = [c1,c2];
+charts.forEach((src,si) => src.timeScale().subscribeVisibleLogicalRangeChange(r => {
+  if (!r) return;
+  charts.forEach((dst,di) => { if (di!==si) dst.timeScale().setVisibleLogicalRange(r); });
+}));
+const priceMap = {}; D.ohlc.forEach(b => { priceMap[b.time] = b.close; });
+const wvMap = {}; D.dates.forEach((t,i) => { if (D.wv[i]!==null) wvMap[t] = D.wv[i]; });
+[[c1,cs,priceMap],[c2,wvSer,wvMap]].forEach(([src,_s,sMap],si,all) => {
+  src.subscribeCrosshairMove(param => {
+    all.forEach(([dst,dSer,dMap],di) => {
+      if (di===si) return;
+      if (!param.time || dMap[param.time]===undefined) { dst.clearCrosshairPosition(); return; }
+      dst.setCrosshairPosition(dMap[param.time], param.time, dSer);
+    });
+  });
+});
+['cp','cw'].forEach(id => {
+  const div = document.getElementById(id);
+  div.addEventListener('wheel', e => {
+    if (e.clientX > div.getBoundingClientRect().right - 65) e.stopImmediatePropagation();
+  }, {capture:true, passive:false});
+});
+c1.timeScale().fitContent();
+
+{% endif %}
+
+let _liveLine = null;
+function updateLivePrices() {
+  fetch('/api/live-prices').then(r => r.json()).then(px => {
+    const price = px[{{ ticker | tojson }}];
+    if (!price) return;
+    if (_liveLine) { _liveLine.applyOptions({price}); }
+    else { _liveLine = cs.createPriceLine({price, color:'#22d3ee', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'Live'}); }
+  }).catch(() => {});
+}
+updateLivePrices();
+setInterval(updateLivePrices, 5*60*1000);
+</script>
+</body>
+</html>

@@ -57,7 +57,7 @@
       {% endif %}
     </div>
     <div class="chart-body">
-      <iframe id="chart-frame" src="/portfolio-charts" title="Chart"></iframe>
+      <iframe id="chart-frame" src="" title="Chart"></iframe>
       <div id="tv-chart"></div>
     </div>
   </div>
@@ -94,10 +94,8 @@
       {%- set exch = t.exchange if t.exchange else "" -%}
       {%- set tv_sym = (exch + ":" + t.ticker) if exch else t.ticker -%}
       {%- set is_neg = t.get('negative', false) -%}
-      {%- set chart_anchor = "pnl-" + tv_sym | replace(":", "_") | replace(".", "_") | replace("-", "_") -%}
       <tr class="signal-row{% if is_neg %} micro-negative{% endif %}"
           data-tv-symbol="{{ tv_sym }}"
-          data-anchor="{{ chart_anchor }}"
           data-has-prices="{{ '1' if t.get('has_prices') else '0' }}"
           data-ticker="{{ t.ticker }}"
           data-rank="{{ t.cluster_rank or 9999 }}"
@@ -161,19 +159,6 @@
   var iframe = document.getElementById('chart-frame');
   var tvDiv  = document.getElementById('tv-chart');
 
-  var FRAME_URL = {
-    'W': '/portfolio-charts',
-    'D': '/portfolio-charts-daily',
-  };
-
-  var _frameBaseUrl  = '/portfolio-charts';
-  var _frameReady    = false;
-  var _pendingAnchor = null;
-
-  function _anchor(tvSymbol) {
-    return 'pnl-' + tvSymbol.replace(/[^A-Za-z0-9]/g, '_');
-  }
-
   function updateExtLinks(tvSymbol) {
     var tvOverview = document.getElementById('tv-overview-link');
     var tvChart    = document.getElementById('tv-chart-link');
@@ -210,28 +195,6 @@
       });
   };
 
-  function _callInFrame(anchor) {
-    try {
-      var cw = iframe.contentWindow;
-      if (typeof cw.activateTab === 'function') {
-        if (typeof cw.selectList === 'function') cw.selectList('');
-        cw.activateTab(anchor);
-      } else {
-        cw.location.hash = anchor;
-      }
-    } catch (e) {
-      iframe.src = _frameBaseUrl + '#' + anchor;
-    }
-  }
-
-  iframe.addEventListener('load', function () {
-    _frameReady = true;
-    if (_pendingAnchor) {
-      var a = _pendingAnchor; _pendingAnchor = null;
-      _callInFrame(a);
-    }
-  });
-
   function loadChart(tvSymbol, mode) {
     mode = mode || _mode;
     _currentSymbol = tvSymbol;
@@ -262,18 +225,7 @@
 
     if (tvDiv) tvDiv.style.display = 'none';
     iframe.style.display = 'block';
-
-    var url    = FRAME_URL[mode] || FRAME_URL['W'];
-    var anchor = _anchor(tvSymbol);
-
-    if (url === _frameBaseUrl && _frameReady) {
-      _callInFrame(anchor);
-    } else {
-      _frameBaseUrl  = url;
-      _frameReady    = false;
-      _pendingAnchor = anchor;
-      iframe.src     = url + '#' + anchor;
-    }
+    iframe.src = '/chart/' + encodeURIComponent(tvSymbol) + '?period=' + mode;
   }
 
   window.setChartMode = function (mode, btn) {
@@ -289,11 +241,10 @@
   var firstRow = document.querySelector('.signal-row[data-tv-symbol]');
   if (firstRow) {
     _currentSymbol = firstRow.dataset.tvSymbol;
-    _frameBaseUrl  = FRAME_URL['W'];
-    _pendingAnchor = _anchor(_currentSymbol);
     firstRow.classList.add('signal-row--active');
     updateExtLinks(_currentSymbol);
     updateNoPricesHint(firstRow.dataset.hasPrices === '1');
+    iframe.src = '/chart/' + encodeURIComponent(_currentSymbol) + '?period=W';
   }
 
   window.rowClick = function (row) {

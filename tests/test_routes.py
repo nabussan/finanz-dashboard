@@ -65,11 +65,11 @@ async def test_micro(client):
 
 
 async def test_micro_iframe_structure(client):
-    """Micro-Seite muss iframe auf /portfolio-charts haben (W/D RSM-Charts)."""
+    """Micro-Seite muss einen chart-frame iframe haben."""
     r = await client.get("/micro")
     assert r.status_code == 200
     assert 'id="chart-frame"' in r.text
-    assert '/portfolio-charts' in r.text
+    assert '/chart/' in r.text
 
 
 async def test_micro_chart_controls(client):
@@ -93,11 +93,11 @@ async def test_micro_table_columns(client):
         assert col in r.text, f"Spalte {col!r} fehlt in /micro"
 
 
-async def test_micro_anchor_format(client):
-    """Jede Tabellenzeile muss data-anchor mit pnl-Prefix haben (iframe-Navigation)."""
+async def test_micro_tv_symbol_attribute(client):
+    """Jede Tabellenzeile muss data-tv-symbol haben (Chart-URL-Navigation)."""
     r = await client.get("/micro")
     assert r.status_code == 200
-    assert 'data-anchor="pnl-' in r.text
+    assert 'data-tv-symbol="' in r.text
 
 
 async def test_micro_chart_data_invalid_interval(client):
@@ -132,48 +132,26 @@ async def test_micro_chart_data_ibkr_weekly(client):
 # ── Charts ───────────────────────────────────────────────────────────────────
 
 
-async def test_portfolio_charts_weekly(client):
-    r = await client.get("/portfolio-charts")
+async def test_chart_endpoint_no_data(client):
+    """GET /chart/{ticker} gibt 200 zurück, auch wenn kein Ticker in DB (zeigt Fehlermeldung)."""
+    r = await client.get("/chart/UNKNOWN:XYZABC123?period=W")
     assert r.status_code == 200
-    assert "rsm-live" in r.text.lower() or "lightweight" in r.text.lower()
+    assert "Keine OHLCV-Daten" in r.text
 
 
 
-async def test_portfolio_charts_daily(client):
-    r = await client.get("/portfolio-charts-daily")
+async def test_chart_endpoint_invalid_period(client):
+    """Ungültiger period-Parameter fällt auf 'W' zurück (kein 4xx)."""
+    r = await client.get("/chart/NASDAQ:AAPL?period=INVALID")
     assert r.status_code == 200
-    assert "Daily" in r.text or "lightweight" in r.text.lower()
 
 
 
-async def test_charts_have_embed_mode(client):
-    """Embed-Mode: sidebar + listbar werden im iframe ausgeblendet."""
-    for url in ("/portfolio-charts", "/portfolio-charts-daily"):
-        r = await client.get(url)
-        assert "window.self!==window.top" in r.text, f"Embed-Mode fehlt in {url}"
-
-
-
-async def test_charts_have_hashchange(client):
-    """hashchange-Listener muss in beiden Chart-Dateien vorhanden sein."""
-    for url in ("/portfolio-charts", "/portfolio-charts-daily"):
-        r = await client.get(url)
-        assert "hashchange" in r.text, f"hashchange-Listener fehlt in {url}"
-
-
-
-async def test_daily_link_uses_dashboard_url(client):
-    """Weekly-Chart darf nicht auf portfolio_daily.html zeigen (relativer Pfad)."""
-    r = await client.get("/portfolio-charts")
-    assert "portfolio_daily.html" not in r.text
-    assert "/portfolio-charts-daily" in r.text
-
-
-
-async def test_weekly_link_in_daily(client):
-    """Daily-Chart muss auf /portfolio-charts zeigen."""
-    r = await client.get("/portfolio-charts-daily")
-    assert "portfolio.html" not in r.text or "/portfolio-charts" in r.text
+async def test_chart_endpoint_embed_mode(client):
+    """Chart-Seite muss Embed-Mode-Erkennung enthalten."""
+    r = await client.get("/chart/NASDAQ:AAPL?period=W")
+    assert r.status_code == 200
+    assert "window.self !== window.top" in r.text or "Keine OHLCV-Daten" in r.text
 
 
 # ── Clusters ─────────────────────────────────────────────────────────────────

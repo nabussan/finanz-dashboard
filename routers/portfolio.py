@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import db
-import config
 from routers._cluster_shared import trigger_reclassify
 
 router = APIRouter()
@@ -90,14 +89,12 @@ async def portfolios_page(request: Request, broker: str = Query("ibkr")):
     klasse_dates = [r["klasse_updated"] for r in rows if r["klasse_updated"] is not None]
     klasse_stand = min(klasse_dates) if klasse_dates else None
 
-    charts_available = config.RSM_PORTFOLIO_HTML.exists()
     return templates.TemplateResponse(
         request,
         "portfolio.html",
         {
             "positions": rows,
             "active_broker": broker,
-            "charts_available": charts_available,
             "klasse_stand": klasse_stand,
         },
     )
@@ -120,15 +117,3 @@ async def reclassify_portfolio(broker: str = Query("ibkr")):
     return RedirectResponse(f"/portfolios?broker={broker}&reclassify=1", status_code=303)
 
 
-@router.get("/portfolio-charts")
-async def portfolio_charts():
-    if not config.RSM_PORTFOLIO_HTML.exists():
-        return HTMLResponse("<p>Keine Charts verfügbar.</p>", status_code=404)
-    return FileResponse(config.RSM_PORTFOLIO_HTML, media_type="text/html")
-
-
-@router.get("/portfolio-charts-daily")
-async def portfolio_charts_daily():
-    if not config.RSM_PORTFOLIO_DAILY_HTML.exists():
-        return HTMLResponse("<p>Keine Daily-Charts verfügbar.</p>", status_code=404)
-    return FileResponse(config.RSM_PORTFOLIO_DAILY_HTML, media_type="text/html")

@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -42,10 +41,6 @@ templates.env.globals.update(
 )
 
 
-def _anchor(tv_symbol: str) -> str:
-    """Same transform as make_charts.py: non-alphanumeric → '_'."""
-    return "pnl-" + re.sub(r'[^a-zA-Z0-9]', '_', tv_symbol)
-
 
 @router.get("/watchlists", response_class=HTMLResponse)
 async def watchlists_default(request: Request):
@@ -59,8 +54,7 @@ async def watchlists_default(request: Request):
         return RedirectResponse(f"/watchlists/{first['id']}", status_code=302)
     return templates.TemplateResponse(
         request, "watchlist.html",
-        {"all_watchlists": [], "items": [], "active_wl": None, "missing": 0,
-         "charts_available": config.RSM_PORTFOLIO_HTML.exists()},
+        {"all_watchlists": [], "items": [], "active_wl": None, "missing": 0},
     )
 
 
@@ -101,7 +95,6 @@ async def watchlist_page(request: Request, wl_id: int, reclassify: int = 0):
     klasse_dates = []
     for r in items:
         row = dict(r)
-        row["chart_url"] = f"/portfolio-charts#{_anchor(row['tv_symbol'])}"
         rows.append(row)
         if row["klasse_updated"] is not None:
             klasse_dates.append(row["klasse_updated"])
@@ -113,7 +106,6 @@ async def watchlist_page(request: Request, wl_id: int, reclassify: int = 0):
             "all_watchlists": all_wl,
             "items": rows,
             "active_wl": active_wl,
-            "charts_available": config.RSM_PORTFOLIO_HTML.exists(),
             "klasse_stand": klasse_stand,
             "ucits_map": config.UCITS_MAP,
             "reclassify": reclassify,
