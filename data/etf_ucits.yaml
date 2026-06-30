@@ -105,6 +105,23 @@
   ucits_tv: XETR:IU5C
   quad_best: []
 
+- kategorie: US-Sektor
+  us_ticker: IBB
+  us_exchange: NASDAQ
+  thema: Biotechnology (Nasdaq Biotech Index, Market-Cap)
+  ucits_ticker: BTEC
+  ucits_tv: LSE:BTEC
+  quad_best: []
+
+- kategorie: US-Sektor
+  us_ticker: XBI
+  us_exchange: AMEX
+  thema: Biotechnology (S&P Biotech Select Industry, Equal-Weight)
+  ucits_ticker: null
+  ucits_tv: AMEX:XBI
+  note: kein UCITs-Pendant — BTEC/IBB bilden einen anderen (market-cap-gewichteten) Index ab, kein Index-Match
+  quad_best: []
+
 - kategorie: Region
   us_ticker: EFA
   us_exchange: AMEX
@@ -282,6 +299,14 @@
   ucits_ticker: 8PSG
   ucits_tv: XETR:8PSG
   quad_best: [Q1, Q2, Q3, Q4]
+
+- kategorie: Makro/Rohstoff/FX
+  us_ticker: SLV
+  us_exchange: AMEX
+  thema: Physical Silver
+  ucits_ticker: XSLR
+  ucits_tv: XETR:XSLR
+  quad_best: []
 
 - kategorie: Makro/Rohstoff/FX
   us_ticker: TLT
