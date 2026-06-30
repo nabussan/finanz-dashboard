@@ -34,8 +34,8 @@ _KNOWN_IBKR_EXCHANGES = {
     "ATHEX",      # Athens Exchange
     "BME",        # Bolsa de Madrid
     "BSESOF",     # Sofia / Bucharest Stock Exchange
-    "GPW",        # Warsaw Stock Exchange
-    "MIL",        # Borsa Italiana (Milan)
+    "GPW",        # Warsaw Stock Exchange (TV-Notation)
+    "MIL",        # Borsa Italiana Milan (TV-Notation)
     "OMXCOP",     # NASDAQ OMX Copenhagen
     "OMXSTO",     # NASDAQ OMX Stockholm
     "TASE",       # Tel Aviv Stock Exchange
@@ -45,6 +45,14 @@ _KNOWN_IBKR_EXCHANGES = {
     "TRADEGATE",  # Tradegate Exchange (Germany)
     "BMV",        # Bolsa Mexicana de Valores
     "BX",         # BX Swiss (IBKR: EBS, wie SIX)
+    # TV-Screener-URL-Slug-Notation (115_screener_zu_watchlist.py, micro-Listen):
+    # TradingViews Symbol-Seiten-URLs nutzen abweichende Exchange-Codes, die aber
+    # bereits IBKRs eigenem primaryExchange-Code entsprechen. Per reqContractDetails()
+    # gegen IBKR verifiziert (2026-06-30), siehe rsm-live-Commit ec23692.
+    "SEHK",       # Hongkong (Screener-Slug; TV-Notation HKEX bereits oben)
+    "WSE",        # Warschau (Screener-Slug; TV-Notation GPW bereits oben)
+    "BVME",       # Mailand (Screener-Slug; TV-Notation MIL bereits oben)
+    "VENTURE",    # TSX Venture (Screener-Slug; TV-Notation TSXV bereits oben)
 }
 
 

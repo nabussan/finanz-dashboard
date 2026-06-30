@@ -42,6 +42,10 @@ _EXCH_CURRENCY: dict[str, str] = {
     "XETR": "EUR", "FWB": "EUR", "EURONEXT": "EUR",
     "LSE":  "GBP", "ASX": "AUD", "TSX": "CAD", "TSXV": "CAD",
     "IBIS": "EUR",
+    # Per reqContractDetails() gegen IBKR verifiziert (2026-06-30), siehe
+    # rsm-live/lib/ibkr_fetcher.py + rsm-live-Commit ec23692.
+    "SEHK": "HKD", "WSE": "PLN", "TWSE": "TWD", "TASE": "ILS",
+    "BVME": "EUR", "VENTURE": "CAD",
 }
 
 
