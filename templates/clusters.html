@@ -121,6 +121,14 @@
           </div>
         </details>
 
+        {# Kurse aktualisieren #}
+        <form method="post" action="/clusters/{{ c.id }}/refresh">
+          <button type="submit" class="btn-secondary" style="font-size:11px; padding:2px 8px;"
+                  title="Lädt fehlende/veraltete Kursdaten (>10 Tage Weekly / >5 Tage Daily) per On-Demand-Update nach">
+            Kurse aktualisieren
+          </button>
+        </form>
+
         {# Löschen #}
         <form method="post" action="/clusters/{{ c.id }}/delete"
               onsubmit="return confirm('Cluster »{{ c.name }}« und alle {{ c.item_count }} Ticker löschen?')">

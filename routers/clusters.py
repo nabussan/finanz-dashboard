@@ -8,7 +8,8 @@ import db
 from routers._cluster_shared import (
     parse_tv_import, parse_micro_import, classify_ibkr_coverage,
     upsert_cluster, insert_items, assign_view, unassign_view,
-    delete_item, delete_cluster,
+    delete_item, delete_cluster, trigger_ondemand_update,
+    tickers_missing_prices,
 )
 
 router = APIRouter()
@@ -78,6 +79,16 @@ async def import_cluster(cid: int, content: str = Form(...), mode: str = Form("t
     return RedirectResponse(next or f"/clusters#{cid}", status_code=303)
 
 
+@router.post("/clusters/{cid}/refresh")
+async def refresh_cluster_prices(cid: int):
+    """Triggert On-Demand-Update wenn Ticker ohne aktuelle Kursdaten vorhanden sind."""
+    pool = await db.get_pool()
+    missing = await tickers_missing_prices(pool, cid)
+    if missing:
+        trigger_ondemand_update()
+    return RedirectResponse(f"/clusters#{cid}", status_code=303)
+
+
 @router.post("/clusters/{cid}/delete-item")
 async def delete_cluster_item(cid: int, tv_symbol: str = Form(...),
                                next: str = Form(default=None)):
@@ -107,3 +118,6 @@ async def _do_import(pool, cluster_id: int, content: str, mode: str) -> None:
         symbols = parse_tv_import(content)
     statuses = [classify_ibkr_coverage(s) for s in symbols]
     await insert_items(pool, cluster_id, symbols, statuses)
+    missing = await tickers_missing_prices(pool, cluster_id)
+    if missing:
+        trigger_ondemand_update()

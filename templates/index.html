@@ -65,13 +65,6 @@
       <span class="admin-btn-hint">run_w3.py --skip-update</span>
     </button>
   </form>
-  <form method="post" action="/admin/run/charts">
-    <button class="admin-btn admin-btn--status-{{ pipeline_status.charts }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
-      <span class="admin-btn-dot"></span>
-      <span class="admin-btn-label">Charts neu generieren</span>
-      <span class="admin-btn-hint">make_charts.py</span>
-    </button>
-  </form>
   <form method="post" action="/admin/run/classify">
     <button class="admin-btn admin-btn--status-{{ pipeline_status.classify }}" title="rot: nicht von heute · gelb: läuft · grün: heute aktualisiert">
       <span class="admin-btn-dot"></span>
@@ -83,7 +76,7 @@
     <button class="admin-btn admin-btn--full admin-btn--status-{{ pipeline_status.full }}" title="rot: nicht von heute · gelb: läuft · grün: heute erfolgreich abgeschlossen">
       <span class="admin-btn-dot"></span>
       <span class="admin-btn-label">Alles (Full Pipeline)</span>
-      <span class="admin-btn-hint">EOD + IV + Scores + Charts</span>
+      <span class="admin-btn-hint">EOD + IV + Scores</span>
     </button>
   </form>
 </div>

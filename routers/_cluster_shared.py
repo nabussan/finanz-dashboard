@@ -7,8 +7,14 @@ unterschieden nur über clusters.kind ('watchlist' | 'portfolio_list'). Siehe
 """
 import re
 import subprocess
+from pathlib import Path
 
 _SYMBOL_RE = re.compile(r'^[A-Z0-9]+:[A-Z0-9.]+$')
+
+# rsm-live-Pfad: /opt/rsm-live auf LXC 521, Sibling-Repo im Dev (wie chart.py)
+_RSM_DIR = Path("/opt/rsm-live")
+if not _RSM_DIR.exists():
+    _RSM_DIR = Path(__file__).parent.parent.parent / "rsm-live"
 
 # Exchanges, die nachweislich ohne Sonderbehandlung ueber IBKR aufloesbar sind --
 # Vereinigung aus rsm-live/lib/ibkr_fetcher.py:_TV_TO_IBKR_EXCH (kuratierte Eintraege)
@@ -172,7 +178,7 @@ async def tickers_missing_prices(pool, cluster_id: int) -> list[str]:
 def trigger_ondemand_update() -> None:
     """Feuert den Sofort-Update-Lauf an (fire-and-forget, eigener Lock+Client-IDs)."""
     subprocess.Popen(
-        ["/opt/rsm-live/infra/ondemand_update.sh"],
+        [str(_RSM_DIR / "infra" / "ondemand_update.sh")],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
@@ -188,9 +194,9 @@ def trigger_reclassify(tv_symbols: list[str]) -> None:
     if not tv_symbols:
         return
     subprocess.Popen(
-        ["/opt/rsm-live/.venv/bin/python3", "src/determine_class.py",
+        [str(_RSM_DIR / ".venv" / "bin" / "python3"), "src/determine_class.py",
          "--ticker", *tv_symbols],
-        cwd="/opt/rsm-live",
+        cwd=str(_RSM_DIR),
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
