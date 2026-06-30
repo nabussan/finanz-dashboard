@@ -1,0 +1,333 @@
+# US-ETF → IBKR-handelbares UCITS-Äquivalent
+#
+# Quelle: tradingview-dashboards/MAKRO: ETF ROTATION SCREENER [STS] (Pine-Skript,
+# Stand April 2026), Abschnitt "TICKER-MAPPING (verifiziert IBKR + TradingView)".
+# quad_best = Quadrant(en), in dem das Skript-Playbook den ETF als "best" führt
+# (Q1 Goldilocks, Q2 Reflation, Q3 Stagflation, Q4 Deflation) — nur "best",
+# keine "worst"-Liste in v1.
+#
+# Boersenplatz IBKR -> TradingView: IBIS2->XETR, BVME.ETF->MIL,
+# EBS/AEB->EURONEXT, SBF->SBF/BVL, LSEETF->LSE (GBP/USD), CHIXCH->SIX
+
+- kategorie: Benchmark
+  us_ticker: SPY
+  us_exchange: AMEX
+  thema: S&P 500 Bench.
+  ucits_ticker: SXR8
+  ucits_tv: XETR:SXR8
+  quad_best: []
+
+- kategorie: US-Sektor
+  us_ticker: XLK
+  us_exchange: AMEX
+  thema: S&P 500 IT
+  ucits_ticker: QDVE
+  ucits_tv: XETR:QDVE
+  quad_best: [Q1, Q2]
+
+- kategorie: US-Sektor
+  us_ticker: XLY
+  us_exchange: AMEX
+  thema: Cons. Discr.
+  ucits_ticker: QDVK
+  ucits_tv: XETR:QDVK
+  quad_best: [Q1, Q2]
+
+- kategorie: US-Sektor
+  us_ticker: XLF
+  us_exchange: AMEX
+  thema: Financials
+  ucits_ticker: QDVH
+  ucits_tv: XETR:QDVH
+  quad_best: [Q1]
+
+- kategorie: US-Sektor
+  us_ticker: XLI
+  us_exchange: AMEX
+  thema: Industrials
+  ucits_ticker: QDVG
+  ucits_tv: XETR:QDVG
+  quad_best: [Q1, Q2]
+
+- kategorie: US-Sektor
+  us_ticker: XLE
+  us_exchange: AMEX
+  thema: Energy
+  ucits_ticker: QDVF
+  ucits_tv: XETR:QDVF
+  quad_best: [Q2, Q3]
+
+- kategorie: US-Sektor
+  us_ticker: XLB
+  us_exchange: AMEX
+  thema: Materials
+  ucits_ticker: QDVB
+  ucits_tv: XETR:QDVB
+  quad_best: [Q2]
+
+- kategorie: US-Sektor
+  us_ticker: XLP
+  us_exchange: AMEX
+  thema: Cons. Staples
+  ucits_ticker: QDVC
+  ucits_tv: XETR:QDVC
+  quad_best: [Q3, Q4]
+
+- kategorie: US-Sektor
+  us_ticker: XLU
+  us_exchange: AMEX
+  thema: Utilities
+  ucits_ticker: QDVD
+  ucits_tv: XETR:QDVD
+  quad_best: [Q3]
+
+- kategorie: US-Sektor
+  us_ticker: XLV
+  us_exchange: AMEX
+  thema: Health Care
+  ucits_ticker: QDVA
+  ucits_tv: XETR:QDVA
+  quad_best: [Q4]
+
+- kategorie: US-Sektor
+  us_ticker: XLRE
+  us_exchange: AMEX
+  thema: Real Estate
+  ucits_ticker: XRES
+  ucits_tv: MIL:XRES
+  quad_best: [Q4]
+
+- kategorie: US-Sektor
+  us_ticker: XLC
+  us_exchange: AMEX
+  thema: Comm. Services
+  ucits_ticker: IU5C
+  ucits_tv: XETR:IU5C
+  quad_best: []
+
+- kategorie: Region
+  us_ticker: EFA
+  us_exchange: AMEX
+  thema: MSCI World
+  ucits_ticker: IQQW
+  ucits_tv: XETR:IQQW
+  quad_best: [Q1]
+
+- kategorie: Region
+  us_ticker: IEV
+  us_exchange: AMEX
+  thema: MSCI Europe
+  ucits_ticker: SMEA
+  ucits_tv: EURONEXT:SMEA
+  quad_best: [Q1]
+
+- kategorie: Region
+  us_ticker: EWJ
+  us_exchange: AMEX
+  thema: MSCI Japan
+  ucits_ticker: IJPN
+  ucits_tv: EURONEXT:IJPN
+  quad_best: [Q1, Q4]
+
+- kategorie: Region
+  us_ticker: EWG
+  us_exchange: AMEX
+  thema: MSCI Germany
+  ucits_ticker: EXS1
+  ucits_tv: XETR:EXS1
+  quad_best: [Q1]
+
+- kategorie: Region
+  us_ticker: EWA
+  us_exchange: AMEX
+  thema: MSCI Australia
+  ucits_ticker: SAUS
+  ucits_tv: EURONEXT:SAUS
+  quad_best: [Q3, Q4]
+
+- kategorie: Region
+  us_ticker: EWU
+  us_exchange: AMEX
+  thema: MSCI UK
+  ucits_ticker: CSUK
+  ucits_tv: LSE:CSUK
+  quad_best: [Q2]
+
+- kategorie: Region
+  us_ticker: EWZ
+  us_exchange: AMEX
+  thema: MSCI Brazil
+  ucits_ticker: IBZL
+  ucits_tv: EURONEXT:IBZL
+  quad_best: [Q2]
+
+- kategorie: Region
+  us_ticker: EWC
+  us_exchange: AMEX
+  thema: MSCI Canada
+  ucits_ticker: SXR2
+  ucits_tv: XETR:SXR2
+  quad_best: [Q2]
+
+- kategorie: Region
+  us_ticker: EEM
+  us_exchange: AMEX
+  thema: MSCI EM
+  ucits_ticker: IEMM
+  ucits_tv: EURONEXT:IEMM
+  quad_best: [Q2]
+
+- kategorie: Region
+  us_ticker: EWL
+  us_exchange: AMEX
+  thema: MSCI Swiss
+  ucits_ticker: null
+  ucits_tv: AMEX:EWL
+  note: kein UCITs-Äquivalent (kein KID) — US-Ticker bleibt
+  quad_best: [Q3, Q4]
+
+- kategorie: Region
+  us_ticker: FXI
+  us_exchange: AMEX
+  thema: China Large Cap
+  ucits_ticker: FXC
+  ucits_tv: EURONEXT:FXC
+  quad_best: []
+
+- kategorie: Region
+  us_ticker: INDA
+  us_exchange: AMEX
+  thema: MSCI India
+  ucits_ticker: QDV5
+  ucits_tv: XETR:QDV5
+  quad_best: []
+
+- kategorie: Region
+  us_ticker: EWY
+  us_exchange: AMEX
+  thema: MSCI Korea
+  ucits_ticker: IKOR
+  ucits_tv: SIX:IKOR.USD
+  quad_best: []
+
+- kategorie: Faktor
+  us_ticker: VUG
+  us_exchange: AMEX
+  thema: S&P500 Growth
+  ucits_ticker: null
+  ucits_tv: AMEX:VUG
+  note: kein UCITs-Äquivalent (kein KID) — US-Ticker bleibt
+  quad_best: [Q1]
+
+- kategorie: Faktor
+  us_ticker: IJR
+  us_exchange: AMEX
+  thema: S&P600 SmallCap
+  ucits_ticker: CSUSS
+  ucits_tv: EURONEXT:CSUSS
+  quad_best: [Q1]
+
+- kategorie: Faktor
+  us_ticker: QUAL
+  us_exchange: CBOE
+  thema: MSCI World Quality
+  ucits_ticker: IWFQ
+  ucits_tv: LSE:IWFQ
+  quad_best: [Q3, Q4]
+
+- kategorie: Faktor
+  us_ticker: USMV
+  us_exchange: AMEX
+  thema: MSCI USA Min Vol
+  ucits_ticker: MVEA
+  ucits_tv: XETR:MVEA
+  quad_best: [Q3, Q4]
+
+- kategorie: Faktor
+  us_ticker: VTV
+  us_exchange: AMEX
+  thema: MSCI USA Value
+  ucits_ticker: QDVI
+  ucits_tv: XETR:QDVI
+  quad_best: [Q2, Q3]
+
+- kategorie: Faktor
+  us_ticker: MTUM
+  us_exchange: CBOE
+  thema: MSCI USA Momentum
+  ucits_ticker: IUMO
+  ucits_tv: LSE:IUMO
+  quad_best: [Q1, Q2]
+
+- kategorie: Faktor
+  us_ticker: QQQ
+  us_exchange: NASDAQ
+  thema: NASDAQ-100
+  ucits_ticker: EXXT
+  ucits_tv: XETR:EXXT
+  quad_best: [Q1]
+
+- kategorie: Faktor
+  us_ticker: IWM
+  us_exchange: AMEX
+  thema: Russell 2000
+  ucits_ticker: ZPRR
+  ucits_tv: XETR:ZPRR
+  quad_best: []
+
+- kategorie: Makro/Rohstoff/FX
+  us_ticker: GLD
+  us_exchange: AMEX
+  thema: Physical Gold
+  ucits_ticker: 8PSG
+  ucits_tv: XETR:8PSG
+  quad_best: [Q1, Q2, Q3, Q4]
+
+- kategorie: Makro/Rohstoff/FX
+  us_ticker: TLT
+  us_exchange: NASDAQ
+  thema: USD Treasury 20yr
+  ucits_ticker: IDTL
+  ucits_tv: LSE:IDTL
+  quad_best: [Q4]
+
+- kategorie: Makro/Rohstoff/FX
+  us_ticker: DBC
+  us_exchange: AMEX
+  thema: Broad Commodity
+  ucits_ticker: CMOD
+  ucits_tv: MIL:CMOD
+  quad_best: [Q2, Q3]
+
+- kategorie: Makro/Rohstoff/FX
+  us_ticker: UUP
+  us_exchange: AMEX
+  thema: USD Index
+  ucits_ticker: null
+  ucits_tv: AMEX:UUP
+  note: kein UCITs-Äquivalent — dient als EUR/USD-Overlay, US-Ticker bleibt
+  quad_best: []
+
+- kategorie: Gold-Miners/Crypto
+  us_ticker: GDX
+  us_exchange: AMEX
+  thema: Gold Miners
+  ucits_ticker: GDX1
+  ucits_tv: BVL:GDX1
+  quad_best: []
+
+- kategorie: Gold-Miners/Crypto
+  us_ticker: GDXJ
+  us_exchange: AMEX
+  thema: Gold Proxy
+  ucits_ticker: 8PSG
+  ucits_tv: XETR:8PSG
+  quad_best: []
+
+- kategorie: Gold-Miners/Crypto
+  us_ticker: IBIT
+  us_exchange: NASDAQ
+  thema: Bitcoin ETC
+  ucits_ticker: BTCE
+  ucits_tv: XETR:BTCE
+  quad_best: []

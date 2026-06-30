@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+{% block title %}Info{% endblock %}
+{% block body_class %}info-page{% endblock %}
+{% block content %}
+
+<h1>Info</h1>
+
+<h2>ETFs &amp; IBKR-handelbare UCITS-Äquivalente</h2>
+<p class="subtitle">
+  US-ETFs unterliegen ohne PRIIPs-KID bei IBKR i.d.R. Kaufbeschränkungen für
+  EU-Privatanleger. UCITS-Börsenplatz bevorzugt EUR-notiert (Xetra, Euronext,
+  Borsa Italiana) — sonst LSE (GBP/USD). "Quad-Stärke" = Quadrant(en), in dem
+  das Makro-Rotation-Playbook den ETF als "best" einstuft (Q1 Goldilocks,
+  Q2 Reflation, Q3 Stagflation, Q4 Deflation).
+</p>
+
+{% for kategorie, rows in by_kategorie %}
+<h2>{{ kategorie }}</h2>
+<table class="rsm-table">
+  <thead>
+    <tr>
+      <th>US-ETF</th>
+      <th>Thema</th>
+      <th>UCITS-Ticker</th>
+      <th>UCITS-Börsenplatz</th>
+      <th>Quad-Stärke</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td class="ticker-cell">{{ r.us_ticker }} <span class="subtitle">({{ r.us_exchange }})</span></td>
+      <td>{{ r.thema }}</td>
+      <td>{{ r.ucits_ticker or "—" }}</td>
+      <td>
+        {{ r.ucits_tv }}
+        {% if r.note %}<br><span class="subtitle">{{ r.note }}</span>{% endif %}
+      </td>
+      <td>{{ r.quad_best | join(", ") if r.quad_best else "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+
+{% endblock %}

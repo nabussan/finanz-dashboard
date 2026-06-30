@@ -20,6 +20,7 @@
       <li><a href="/micro"      {% if request.url.path == "/micro" %}class="active"{% endif %}>Micro</a></li>
       <li><a href="/micro-listen" {% if request.url.path.startswith("/micro-listen") %}class="active"{% endif %}>Micro-Listen</a></li>
       <li><a href="/clusters"    {% if request.url.path.startswith("/clusters") %}class="active"{% endif %}>Cluster</a></li>
+      <li><a href="/info"        {% if request.url.path == "/info" %}class="active"{% endif %}>Info</a></li>
     </ul>
     {# ── Datenstand ──────────────────────────────── #}
     {% set pu = request.state.price_updates if request.state.price_updates is defined else {} %}

@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 import db
 import config
-from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists, chart
+from routers import clusters, disco, rsm, portfolio, micro, micro_lists, watchlist, portfolio_lists, chart, info
 
 RSM_DIR = Path(__file__).parent.parent / "rsm-live"
 
@@ -171,6 +171,7 @@ app.include_router(micro_lists.router)
 app.include_router(watchlist.router)
 app.include_router(portfolio_lists.router)
 app.include_router(chart.router)
+app.include_router(info.router)
 
 
 async def _system_status(pool) -> list[dict]:
