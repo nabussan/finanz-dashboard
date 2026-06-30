@@ -8,12 +8,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{background:#131722;color:#d1d4dc;font-family:-apple-system,sans-serif;font-size:13px;display:flex;flex-direction:column}
-#wrap{flex:1;overflow-y:auto}
-.ptitle{font-size:14px;font-weight:600;padding:6px 10px;color:#d1d4dc;display:flex;align-items:center;gap:10px}
-.clabel{font-size:9px;color:#787b86;padding:2px 10px;margin-top:4px}
-.leg{display:flex;gap:14px;padding:3px 10px 4px;font-size:10px;color:#787b86}
+#wrap{flex:1;display:flex;flex-direction:column;overflow-y:auto}
+.ptitle{flex:none;font-size:14px;font-weight:600;padding:6px 10px;color:#d1d4dc;display:flex;align-items:center;gap:10px}
+.clabel{flex:none;font-size:9px;color:#787b86;padding:2px 10px;margin-top:4px}
+.leg{flex:none;display:flex;gap:14px;padding:3px 10px 4px;font-size:10px;color:#787b86}
 .leg span{display:flex;align-items:center;gap:4px}
 .dot{width:9px;height:9px;border-radius:50%}
+.cchart{flex:2 1 0;min-height:120px}
+.cchart--sub{flex:1 1 0;min-height:70px}
 {% if period == 'W' %}
 .plink{color:#ef9a9a;text-decoration:none;font-size:11px;font-weight:400;padding:1px 7px;border:1px solid rgba(239,83,80,0.35);border-radius:3px}
 .plink:hover{background:rgba(239,83,80,0.15)}
@@ -38,10 +40,10 @@ body.embedded .ptitle{display:none}
   {% else %}
   <div class="clabel" id="lbl-cp">Preis (daily) &mdash; Kalman grün/rot: K+/K&minus; &nbsp; Band: 1&times;ATR Softstop &nbsp; 2&times;ATR Hardstop</div>
   {% endif %}
-  <div id="cp" style="height:280px"></div>
+  <div id="cp" class="cchart"></div>
   {% if period == 'W' %}
   <div class="clabel" id="lbl-cz">W3 z-Score &mdash; blau: z &nbsp; gelb: 1.0 (Entry) &nbsp; grau: 0</div>
-  <div id="cz" style="height:130px"></div>
+  <div id="cz" class="cchart cchart--sub"></div>
   <div class="clabel" id="lbl-cw">WillVal (weekly) &mdash; lila: wv &nbsp; gestrichelt: 60 &nbsp; Hintergrund: W2</div>
   {% else %}
   <div class="clabel" id="lbl-cw">WillVal (daily) &mdash; rosa: wv &nbsp; grün: 70 &nbsp; rot: 30 &nbsp; Hintergrund: W2</div>
@@ -51,7 +53,7 @@ body.embedded .ptitle{display:none}
     <span><span class="dot" style="background:rgba(120,123,134,0.5)"></span>Neutral</span>
     <span><span class="dot" style="background:rgba(239,83,80,0.7)"></span>Risiko</span>
   </div>
-  <div id="cw" style="height:130px"></div>
+  <div id="cw" class="cchart cchart--sub"></div>
 </div>
 <script>
 const D = {{ data_json | safe }};
@@ -63,6 +65,7 @@ const C = {
   ch:'rgba(38,166,154,0.18)', nt:'rgba(120,123,134,0.12)', ri:'rgba(239,83,80,0.18)',
 };
 const opt = {
+  autoSize:true,
   layout:{background:{color:'#131722'},textColor:'#d1d4dc'},
   grid:{vertLines:{color:'#1e222d'},horzLines:{color:'#1e222d'}},
   timeScale:{borderColor:'#2a2e39',timeVisible:true,rightOffset:12},
@@ -81,7 +84,7 @@ if (!hasWV) { hide('lbl-cw'); hide('leg-wv'); hide('cw'); }
 {% if period == 'W' %}
 if (!hasZ) hide('lbl-cz');
 
-const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt, height:280});
+const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt});
 const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.up,borderDownColor:C.dn,wickUpColor:C.up,wickDownColor:C.dn});
 cs.setData(D.ohlc);
 const mk = [];
@@ -100,7 +103,7 @@ var c2=null, zSer=null;
 if (hasZ) {
   var czEl = document.getElementById('cz');
   czEl.style.display = 'block';
-  c2 = LightweightCharts.createChart(czEl, {...opt, height:130});
+  c2 = LightweightCharts.createChart(czEl, {...opt});
   const validW = D.dates.filter(function(_,i){return D.z_slope[i]!==null;});
   zSer = c2.addLineSeries({color:C.zl,lineWidth:2,priceLineVisible:false});
   zSer.setData(D.dates.map(function(t,i){return D.z_slope[i]!==null?{time:t,value:D.z_slope[i]}:null;}).filter(Boolean));
@@ -120,7 +123,7 @@ var c3=null, wvSerW=null;
 if (hasWV) {
   var cwEl = document.getElementById('cw');
   cwEl.style.display = 'block';
-  c3 = LightweightCharts.createChart(cwEl, {...opt, height:130});
+  c3 = LightweightCharts.createChart(cwEl, {...opt});
   const bgData = D.dates.map(function(t,i){
     var s=D.w2[i]; if(s===null) return null;
     return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
@@ -164,7 +167,7 @@ c1.timeScale().fitContent();
 
 {% else %}
 
-const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt, height:280});
+const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt});
 const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.up,borderDownColor:C.dn,wickUpColor:C.up,wickDownColor:C.dn});
 cs.setData(D.ohlc);
 if (D.kalman) {
@@ -195,7 +198,7 @@ var c2=null, wvSerD=null;
 if (hasWV) {
   var cwEl = document.getElementById('cw');
   cwEl.style.display = 'block';
-  c2 = LightweightCharts.createChart(cwEl, {...opt, height:130});
+  c2 = LightweightCharts.createChart(cwEl, {...opt});
   const bgData = D.dates.map(function(t,i){
     var s=D.w2[i]; if(s===null) return null;
     return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
