@@ -34,19 +34,19 @@ body.embedded .ptitle{display:none}
     <a class="plink plink--ext" href="https://www.tradingview.com/chart/9U3N6gv0/?symbol={{ ticker }}" target="_blank" rel="noopener">Chart</a>
   </div>
   {% if period == 'W' %}
-  <div class="clabel">Preis (weekly) &mdash; &#x25B2; Buy W3 &nbsp; &#x25BC; Sell W3</div>
+  <div class="clabel" id="lbl-cp">Preis (weekly) &mdash; &#x25B2; Buy W3 &nbsp; &#x25BC; Sell W3</div>
   {% else %}
-  <div class="clabel">Preis (daily) &mdash; Kalman grün/rot: K+/K&minus; &nbsp; Band: 1&times;ATR Softstop &nbsp; 2&times;ATR Hardstop</div>
+  <div class="clabel" id="lbl-cp">Preis (daily) &mdash; Kalman grün/rot: K+/K&minus; &nbsp; Band: 1&times;ATR Softstop &nbsp; 2&times;ATR Hardstop</div>
   {% endif %}
   <div id="cp" style="height:280px"></div>
   {% if period == 'W' %}
-  <div class="clabel">W3 z-Score &mdash; blau: z &nbsp; gelb: 1.0 (Entry) &nbsp; grau: 0</div>
+  <div class="clabel" id="lbl-cz">W3 z-Score &mdash; blau: z &nbsp; gelb: 1.0 (Entry) &nbsp; grau: 0</div>
   <div id="cz" style="height:130px"></div>
-  <div class="clabel">WillVal (weekly) &mdash; lila: wv &nbsp; gestrichelt: 60 &nbsp; Hintergrund: W2</div>
+  <div class="clabel" id="lbl-cw">WillVal (weekly) &mdash; lila: wv &nbsp; gestrichelt: 60 &nbsp; Hintergrund: W2</div>
   {% else %}
-  <div class="clabel">WillVal (daily) &mdash; rosa: wv &nbsp; grün: 70 &nbsp; rot: 30 &nbsp; Hintergrund: W2</div>
+  <div class="clabel" id="lbl-cw">WillVal (daily) &mdash; rosa: wv &nbsp; grün: 70 &nbsp; rot: 30 &nbsp; Hintergrund: W2</div>
   {% endif %}
-  <div class="leg">
+  <div class="leg" id="leg-wv">
     <span><span class="dot" style="background:rgba(38,166,154,0.7)"></span>Chance</span>
     <span><span class="dot" style="background:rgba(120,123,134,0.5)"></span>Neutral</span>
     <span><span class="dot" style="background:rgba(239,83,80,0.7)"></span>Risiko</span>
@@ -71,61 +71,94 @@ const opt = {
 };
 if (window.self !== window.top) document.body.classList.add('embedded');
 
+function hide(id) { var el=document.getElementById(id); if(el) el.style.display='none'; }
+
+const hasZ  = D.z_slope && D.z_slope.some(function(v){return v!==null;});
+const hasWV = D.wv      && D.wv.some(function(v){return v!==null;});
+
+if (!hasWV) { hide('lbl-cw'); hide('leg-wv'); hide('cw'); }
+
 {% if period == 'W' %}
+if (!hasZ) hide('lbl-cz');
+
 const c1 = LightweightCharts.createChart(document.getElementById('cp'), {...opt, height:280});
 const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.up,borderDownColor:C.dn,wickUpColor:C.up,wickDownColor:C.dn});
 cs.setData(D.ohlc);
 const mk = [];
-(D.entries||[]).forEach(t => mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'B',size:1}));
-(D.exits||[]).forEach(t => mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'S',size:1}));
-mk.sort((a,b) => a.time < b.time ? -1 : 1);
+(D.entries||[]).forEach(function(t){mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'B',size:1});});
+(D.exits||[]).forEach(function(t){mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'S',size:1});});
+mk.sort(function(a,b){return a.time<b.time?-1:1;});
 cs.setMarkers(mk);
 
-const c2 = LightweightCharts.createChart(document.getElementById('cz'), {...opt, height:130});
-const validW = D.dates.filter((_,i) => D.z_slope[i] !== null);
-const zSer = c2.addLineSeries({color:C.zl,lineWidth:2,priceLineVisible:false});
-zSer.setData(D.dates.map((t,i) => D.z_slope[i] !== null ? {time:t,value:D.z_slope[i]} : null).filter(Boolean));
-c2.addLineSeries({color:C.z0,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
-  .setData(validW.map(t => ({time:t,value:0})));
-c2.addLineSeries({color:C.ze,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
-  .setData(validW.map(t => ({time:t,value:1})));
+const charts = [c1];
+const syncPairs = [];
+const priceMap = {};
+D.ohlc.forEach(function(b){priceMap[b.time]=b.close;});
+syncPairs.push([c1, cs, priceMap]);
 
-const c3 = LightweightCharts.createChart(document.getElementById('cw'), {...opt, height:130});
-const bgData = D.dates.map((t,i) => {
-  const s = D.w2[i]; if (s === null) return null;
-  return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
-}).filter(Boolean);
-const bgSeries = c3.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
-bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
-bgSeries.setData(bgData);
-const wvSer = c3.addLineSeries({color:C.ww,lineWidth:2,priceLineVisible:false});
-wvSer.setData(D.dates.map((t,i) => D.wv[i] !== null ? {time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.ww} : null).filter(Boolean));
-const wvValidW = D.dates.filter((_,i) => D.wv[i] !== null);
-c3.addLineSeries({color:C.w60,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
-  .setData(wvValidW.map(t => ({time:t,value:60})));
+var c2=null, zSer=null;
+if (hasZ) {
+  var czEl = document.getElementById('cz');
+  czEl.style.display = 'block';
+  c2 = LightweightCharts.createChart(czEl, {...opt, height:130});
+  const validW = D.dates.filter(function(_,i){return D.z_slope[i]!==null;});
+  zSer = c2.addLineSeries({color:C.zl,lineWidth:2,priceLineVisible:false});
+  zSer.setData(D.dates.map(function(t,i){return D.z_slope[i]!==null?{time:t,value:D.z_slope[i]}:null;}).filter(Boolean));
+  c2.addLineSeries({color:C.z0,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+    .setData(validW.map(function(t){return {time:t,value:0};}));
+  c2.addLineSeries({color:C.ze,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+    .setData(validW.map(function(t){return {time:t,value:1};}));
+  charts.push(c2);
+  const zMap = {};
+  D.dates.forEach(function(t,i){if(D.z_slope[i]!==null) zMap[t]=D.z_slope[i];});
+  syncPairs.push([c2, zSer, zMap]);
+} else {
+  hide('cz');
+}
 
-const charts = [c1,c2,c3];
-charts.forEach((src,si) => src.timeScale().subscribeVisibleLogicalRangeChange(r => {
-  if (!r) return;
-  charts.forEach((dst,di) => { if (di!==si) dst.timeScale().setVisibleLogicalRange(r); });
-}));
-const priceMap = {}; D.ohlc.forEach(b => { priceMap[b.time] = b.close; });
-const zMap = {}; D.dates.forEach((t,i) => { if (D.z_slope[i]!==null) zMap[t] = D.z_slope[i]; });
-const wvMap = {}; D.dates.forEach((t,i) => { if (D.wv[i]!==null) wvMap[t] = D.wv[i]; });
-[[c1,cs,priceMap],[c2,zSer,zMap],[c3,wvSer,wvMap]].forEach(([src,_s,sMap],si,all) => {
-  src.subscribeCrosshairMove(param => {
-    all.forEach(([dst,dSer,dMap],di) => {
-      if (di===si) return;
-      if (!param.time || dMap[param.time]===undefined) { dst.clearCrosshairPosition(); return; }
-      dst.setCrosshairPosition(dMap[param.time], param.time, dSer);
+var c3=null, wvSerW=null;
+if (hasWV) {
+  var cwEl = document.getElementById('cw');
+  cwEl.style.display = 'block';
+  c3 = LightweightCharts.createChart(cwEl, {...opt, height:130});
+  const bgData = D.dates.map(function(t,i){
+    var s=D.w2[i]; if(s===null) return null;
+    return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
+  }).filter(Boolean);
+  const bgSeries = c3.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
+  bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
+  bgSeries.setData(bgData);
+  wvSerW = c3.addLineSeries({color:C.ww,lineWidth:2,priceLineVisible:false});
+  wvSerW.setData(D.dates.map(function(t,i){return D.wv[i]!==null?{time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.ww}:null;}).filter(Boolean));
+  const wvValidW = D.dates.filter(function(_,i){return D.wv[i]!==null;});
+  c3.addLineSeries({color:C.w60,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false})
+    .setData(wvValidW.map(function(t){return {time:t,value:60};}));
+  charts.push(c3);
+  const wvMap = {};
+  D.dates.forEach(function(t,i){if(D.wv[i]!==null) wvMap[t]=D.wv[i];});
+  syncPairs.push([c3, wvSerW, wvMap]);
+}
+
+charts.forEach(function(src,si){
+  src.timeScale().subscribeVisibleLogicalRangeChange(function(r){
+    if(!r) return;
+    charts.forEach(function(dst,di){if(di!==si) dst.timeScale().setVisibleLogicalRange(r);});
+  });
+});
+syncPairs.forEach(function(item,si){
+  item[0].subscribeCrosshairMove(function(param){
+    syncPairs.forEach(function(other,di){
+      if(di===si) return;
+      if(!param.time||other[2][param.time]===undefined){other[0].clearCrosshairPosition();return;}
+      other[0].setCrosshairPosition(other[2][param.time],param.time,other[1]);
     });
   });
 });
-['cp','cz','cw'].forEach(id => {
-  const div = document.getElementById(id);
-  div.addEventListener('wheel', e => {
-    if (e.clientX > div.getBoundingClientRect().right - 65) e.stopImmediatePropagation();
-  }, {capture:true, passive:false});
+['cp', hasZ?'cz':null, hasWV?'cw':null].filter(Boolean).forEach(function(id){
+  var div=document.getElementById(id);
+  div.addEventListener('wheel',function(e){
+    if(e.clientX>div.getBoundingClientRect().right-65) e.stopImmediatePropagation();
+  },{capture:true,passive:false});
 });
 c1.timeScale().fitContent();
 
@@ -136,58 +169,73 @@ const cs = c1.addCandlestickSeries({upColor:C.up,downColor:C.dn,borderUpColor:C.
 cs.setData(D.ohlc);
 if (D.kalman) {
   const b2 = {color:C.kb2,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false};
-  c1.addLineSeries(b2).setData(D.dates.map((t,i) => D.k_upper2[i]!==null ? {time:t,value:D.k_upper2[i]} : null).filter(Boolean));
-  c1.addLineSeries(b2).setData(D.dates.map((t,i) => D.k_lower2[i]!==null ? {time:t,value:D.k_lower2[i]} : null).filter(Boolean));
+  c1.addLineSeries(b2).setData(D.dates.map(function(t,i){return D.k_upper2[i]!==null?{time:t,value:D.k_upper2[i]}:null;}).filter(Boolean));
+  c1.addLineSeries(b2).setData(D.dates.map(function(t,i){return D.k_lower2[i]!==null?{time:t,value:D.k_lower2[i]}:null;}).filter(Boolean));
   const b1 = {color:C.kb1,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:false};
-  c1.addLineSeries(b1).setData(D.dates.map((t,i) => D.k_upper[i]!==null ? {time:t,value:D.k_upper[i]} : null).filter(Boolean));
-  c1.addLineSeries(b1).setData(D.dates.map((t,i) => D.k_lower[i]!==null ? {time:t,value:D.k_lower[i]} : null).filter(Boolean));
+  c1.addLineSeries(b1).setData(D.dates.map(function(t,i){return D.k_upper[i]!==null?{time:t,value:D.k_upper[i]}:null;}).filter(Boolean));
+  c1.addLineSeries(b1).setData(D.dates.map(function(t,i){return D.k_lower[i]!==null?{time:t,value:D.k_lower[i]}:null;}).filter(Boolean));
   const kSer = c1.addLineSeries({color:C.up,lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-  kSer.setData(D.dates.map((t,i) => D.kalman[i]!==null ? {time:t,value:D.kalman[i],color:D.k_above[i]?C.up:C.dn} : null).filter(Boolean));
-  if (D.k_enter || D.k_exit) {
+  kSer.setData(D.dates.map(function(t,i){return D.kalman[i]!==null?{time:t,value:D.kalman[i],color:D.k_above[i]?C.up:C.dn}:null;}).filter(Boolean));
+  if (D.k_enter||D.k_exit) {
     const mk = [];
-    (D.k_enter||[]).forEach(t => mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'K+',size:1}));
-    (D.k_exit||[]).forEach(t => mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'K-',size:1}));
-    mk.sort((a,b) => a.time < b.time ? -1 : 1);
+    (D.k_enter||[]).forEach(function(t){mk.push({time:t,position:'belowBar',color:C.up,shape:'arrowUp',text:'K+',size:1});});
+    (D.k_exit||[]).forEach(function(t){mk.push({time:t,position:'aboveBar',color:C.dn,shape:'arrowDown',text:'K-',size:1});});
+    mk.sort(function(a,b){return a.time<b.time?-1:1;});
     cs.setMarkers(mk);
   }
 }
-const c2 = LightweightCharts.createChart(document.getElementById('cw'), {...opt, height:130});
-const bgData = D.dates.map((t,i) => {
-  const s = D.w2[i]; if (s === null) return null;
-  return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
-}).filter(Boolean);
-const bgSeries = c2.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
-bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
-bgSeries.setData(bgData);
-const wvSer = c2.addLineSeries({color:C.wwd,lineWidth:2,priceLineVisible:false});
-wvSer.setData(D.dates.map((t,i) => D.wv[i] !== null ? {time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.wwd} : null).filter(Boolean));
-const wvValidD = D.dates.filter((_,i) => D.wv[i] !== null);
-c2.addLineSeries({color:C.up,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
-  .setData(wvValidD.map(t => ({time:t,value:70})));
-c2.addLineSeries({color:C.dn,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
-  .setData(wvValidD.map(t => ({time:t,value:30})));
 
-const charts = [c1,c2];
-charts.forEach((src,si) => src.timeScale().subscribeVisibleLogicalRangeChange(r => {
-  if (!r) return;
-  charts.forEach((dst,di) => { if (di!==si) dst.timeScale().setVisibleLogicalRange(r); });
-}));
-const priceMap = {}; D.ohlc.forEach(b => { priceMap[b.time] = b.close; });
-const wvMap = {}; D.dates.forEach((t,i) => { if (D.wv[i]!==null) wvMap[t] = D.wv[i]; });
-[[c1,cs,priceMap],[c2,wvSer,wvMap]].forEach(([src,_s,sMap],si,all) => {
-  src.subscribeCrosshairMove(param => {
-    all.forEach(([dst,dSer,dMap],di) => {
-      if (di===si) return;
-      if (!param.time || dMap[param.time]===undefined) { dst.clearCrosshairPosition(); return; }
-      dst.setCrosshairPosition(dMap[param.time], param.time, dSer);
+const charts = [c1];
+const syncPairs = [];
+const priceMap = {};
+D.ohlc.forEach(function(b){priceMap[b.time]=b.close;});
+syncPairs.push([c1, cs, priceMap]);
+
+var c2=null, wvSerD=null;
+if (hasWV) {
+  var cwEl = document.getElementById('cw');
+  cwEl.style.display = 'block';
+  c2 = LightweightCharts.createChart(cwEl, {...opt, height:130});
+  const bgData = D.dates.map(function(t,i){
+    var s=D.w2[i]; if(s===null) return null;
+    return {time:t,value:100,color:s===1?C.ch:s===0?C.nt:C.ri};
+  }).filter(Boolean);
+  const bgSeries = c2.addHistogramSeries({priceScaleId:'bg',priceLineVisible:false,lastValueVisible:false});
+  bgSeries.priceScale().applyOptions({scaleMargins:{top:0,bottom:0},visible:false});
+  bgSeries.setData(bgData);
+  wvSerD = c2.addLineSeries({color:C.wwd,lineWidth:2,priceLineVisible:false});
+  wvSerD.setData(D.dates.map(function(t,i){return D.wv[i]!==null?{time:t,value:D.wv[i],color:D.w2[i]===1?C.up:D.w2[i]===-1?C.dn:C.wwd}:null;}).filter(Boolean));
+  const wvValidD = D.dates.filter(function(_,i){return D.wv[i]!==null;});
+  c2.addLineSeries({color:C.up,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
+    .setData(wvValidD.map(function(t){return {time:t,value:70};}));
+  c2.addLineSeries({color:C.dn,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:true})
+    .setData(wvValidD.map(function(t){return {time:t,value:30};}));
+  charts.push(c2);
+  const wvMap = {};
+  D.dates.forEach(function(t,i){if(D.wv[i]!==null) wvMap[t]=D.wv[i];});
+  syncPairs.push([c2, wvSerD, wvMap]);
+}
+
+charts.forEach(function(src,si){
+  src.timeScale().subscribeVisibleLogicalRangeChange(function(r){
+    if(!r) return;
+    charts.forEach(function(dst,di){if(di!==si) dst.timeScale().setVisibleLogicalRange(r);});
+  });
+});
+syncPairs.forEach(function(item,si){
+  item[0].subscribeCrosshairMove(function(param){
+    syncPairs.forEach(function(other,di){
+      if(di===si) return;
+      if(!param.time||other[2][param.time]===undefined){other[0].clearCrosshairPosition();return;}
+      other[0].setCrosshairPosition(other[2][param.time],param.time,other[1]);
     });
   });
 });
-['cp','cw'].forEach(id => {
-  const div = document.getElementById(id);
-  div.addEventListener('wheel', e => {
-    if (e.clientX > div.getBoundingClientRect().right - 65) e.stopImmediatePropagation();
-  }, {capture:true, passive:false});
+['cp', hasWV?'cw':null].filter(Boolean).forEach(function(id){
+  var div=document.getElementById(id);
+  div.addEventListener('wheel',function(e){
+    if(e.clientX>div.getBoundingClientRect().right-65) e.stopImmediatePropagation();
+  },{capture:true,passive:false});
 });
 c1.timeScale().fitContent();
 
@@ -195,12 +243,12 @@ c1.timeScale().fitContent();
 
 let _liveLine = null;
 function updateLivePrices() {
-  fetch('/api/live-prices').then(r => r.json()).then(px => {
+  fetch('/api/live-prices').then(function(r){return r.json();}).then(function(px){
     const price = px[{{ ticker | tojson }}];
     if (!price) return;
     if (_liveLine) { _liveLine.applyOptions({price}); }
     else { _liveLine = cs.createPriceLine({price, color:'#22d3ee', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'Live'}); }
-  }).catch(() => {});
+  }).catch(function(){});
 }
 updateLivePrices();
 setInterval(updateLivePrices, 5*60*1000);
